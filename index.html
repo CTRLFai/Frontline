@@ -543,7 +543,11 @@ function applyLeg(){const L=$('#legend'),A=$('#mapArea');if(!legPos){L.classList
 let VB={x:0,y:0,w:MAP.W,h:MAP.H},touch=null,dragged=false;
 function setVB(x,y,w){w=Math.max(MAP.W/4,Math.min(MAP.W,w));const h=w*MAP.H/MAP.W;
  x=Math.max(0,Math.min(MAP.W-w,x));y=Math.max(0,Math.min(MAP.H-h,y));VB={x,y,w,h};svg.setAttribute('viewBox',`${x} ${y} ${w} ${h}`)}
-function toSvg(cx,cy){const p=svg.createSVGPoint();p.x=cx;p.y=cy;return p.matrixTransform(svg.getScreenCTM().inverse())}
+/* screen point -> map coordinates, computed from layout (not getScreenCTM, which iPhone browsers get wrong
+   with rotated or stretched pages) */
+function toSvg(cx,cy){const A=$('#mapArea'),a=appPt(cx,cy),lx=a.x-A.offsetLeft,ly=a.y-A.offsetTop,W=A.clientWidth,H=A.clientHeight;
+ if(svg.getAttribute('preserveAspectRatio')==='none')return{x:VB.x+lx*VB.w/W,y:VB.y+ly*VB.h/H};
+ const s=Math.min(W/VB.w,H/VB.h),ox=(W-VB.w*s)/2,oy=(H-VB.h*s)/2;return{x:VB.x+(lx-ox)/s,y:VB.y+(ly-oy)/s}}
 function frac(cx,cy){const p=toSvg(cx,cy);return{x:(p.x-VB.x)/VB.w,y:(p.y-VB.y)/VB.h}}
 const mid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2}),dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
 const MA=$('#mapArea');
