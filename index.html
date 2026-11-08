@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Frontline">
+<meta name="theme-color" content="#16203a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Frontline</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{-webkit-touch-callout:none;margin:0;height:100%;background:#000;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;overflow:hidden;touch-action:manipulation}
+/* ---------- game (always landscape) ---------- */
+#app{position:fixed;top:0;left:0;transform-origin:top left;display:none;background:#000;box-sizing:border-box;padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.ingame #app{display:flex}
+#mapArea.ras{background:#0e1626 !important}
+#mapArea{position:relative;touch-action:none;overflow:hidden;flex:1;min-width:0;background:radial-gradient(ellipse at 50% 40%,#bfe9f7,#8fd0ea 70%,#7cc3e0)}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block}
+.terr{stroke:rgba(20,20,20,.55);stroke-width:.9;cursor:pointer}
+.mk circle{stroke:rgba(0,0,0,.45);stroke-width:1}
+.mk text{fill:#fff;font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:2.5px}
+.mk,.arrow,.clbl{pointer-events:none}
+.clbl{display:none}
+svg.bonus .clbl{display:block}
+svg.bonus .mk{display:none}
+.clbl text{font-weight:800;font-size:22px;fill:#111;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:#fff;stroke-width:3px}
+.card{cursor:pointer}
+.card text{text-anchor:middle;font-weight:700;fill:#222}
+#legend.free{border-radius:10px;border:2px solid #cfcfcf}
+#legend{touch-action:none;cursor:move;position:absolute;left:0;bottom:0;background:rgba(250,250,250,.92);border-top-right-radius:7px;border:2px solid #cfcfcf;border-left:0;border-bottom:0;padding:1px 3px 0;box-shadow:0 0 8px rgba(0,0,0,.35)}
+#legend table{border-collapse:collapse}
+#legend th{padding:1px 2px 2px;border-bottom:1.5px solid #c9c9c9}
+#legend th svg{width:19px;height:15px;display:block;margin:auto}
+#legend td{font-weight:800;font-size:15px;text-align:center;padding:0 2px;min-width:25px;line-height:18px;border-top:1px solid #d8d8d8;font-variant-numeric:tabular-nums}
+#banner{position:absolute;right:0;bottom:0;color:#fff;font-weight:800;font-size:27px;padding:2px 12px 3px 14px;border-top-left-radius:9px;text-shadow:0 1px 2px rgba(0,0,0,.7);max-width:78%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#side{flex:none;width:96px;overflow:hidden;background:linear-gradient(90deg,#1a2138,#3b4768 45%,#26304e);display:flex;flex-direction:column;align-items:center;padding:4px 0;padding-right:env(safe-area-inset-right);border-left:1px solid #0c1020}
+.sb{background:none;border:0;color:#fff;font-weight:800;font-size:15px;text-shadow:0 1px 2px #000,0 0 3px #000;display:flex;flex-direction:column;align-items:center;padding:3px 0;width:100%;cursor:pointer;font-family:inherit}
+.sb svg{width:46px;height:42px;filter:drop-shadow(0 1px 1px #000)}
+.sb.menu{font-size:21px;padding:4px 0 6px}
+.sb.on svg{filter:drop-shadow(0 0 5px #ffe066)}
+.sb:disabled{opacity:.35}
+.place{color:#fff;text-align:center;text-shadow:0 1px 2px #000;font-weight:800;margin-top:auto}
+.place .n{font-size:40px;line-height:44px}
+.place .l{font-size:16px;line-height:18px}
+.grow{flex:1}
+#sideIn{display:flex;flex-direction:column;align-items:center;width:100%;min-height:100%}
+/* ---------- modal ---------- */
+#modal{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
+#modal.show{display:flex}
+#box{background:linear-gradient(#3b4768,#1d2540);border:2px solid #8792b0;border-radius:12px;padding:14px 18px;min-width:280px;max-width:90%;max-height:92%;overflow:auto;color:#fff;text-shadow:0 1px 1px #000}
+#box h2{margin:0 0 8px;font-size:20px}
+#box p{margin:5px 0;font-size:14px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{flex:1;background:linear-gradient(#5d6d96,#36426a);border:1px solid #9aa6c6;color:#fff;font:700 16px inherit;font-family:inherit;padding:9px 12px;border-radius:8px;text-shadow:0 1px 1px #000;cursor:pointer}
+.btn.pri{background:linear-gradient(#4a7bd6,#24479a)}
+input[type=range]{width:100%;height:30px}
+.big{font-size:34px;font-weight:800;text-align:center}
+#logList{font-size:13px;max-height:55vh;overflow:auto}
+#logList div{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.15)}
+/* ---------- setup (iOS style) ---------- */
+#setup{position:fixed;inset:0;overflow:auto;background:linear-gradient(160deg,#b9a27a 0%,#d9cdb6 30%,#c9c3d6 65%,#8d7aa6 100%);-webkit-overflow-scrolling:touch}
+body.ingame #setup{display:none}
+.nav{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 14px;padding-top:env(safe-area-inset-top);box-sizing:content-box;background:linear-gradient(#f2f2f4,#e1e1e6);border-bottom:1px solid #b9b9c0}
+.nav .t{font-weight:700;font-size:20px;color:#000;position:absolute;left:0;right:0;text-align:center;pointer-events:none}
+.nav a{color:#0a64ff;font-size:19px;cursor:pointer;z-index:1;min-width:60px}
+.nav a.r{text-align:right}
+.nav a.dis{color:#9bb7e8}
+.sec{background:#fff;margin:18px 0;border-top:1px solid #c8c7cc;border-bottom:1px solid #c8c7cc}
+.cell{display:flex;align-items:center;min-height:62px;padding:6px 14px;cursor:pointer;position:relative}
+.cell+.cell:before{content:"";position:absolute;top:0;left:62px;right:0;border-top:1px solid #d6d6da}
+.cell .main{flex:1;font-size:21px;font-weight:600;color:#000}
+.cell .val{color:#2c4fbf;font-size:19px;margin-right:8px}
+.cell .chev{color:#c4c4c9;font-size:22px;font-weight:300}
+.cell .sub{display:block;font-size:19px;font-weight:400;color:#2c4fbf}
+.cell .by{display:block;font-size:17px;font-weight:400;color:#8a8a8e}
+.cell .chk{color:#0a64ff;font-size:22px;font-weight:700}
+.splat{width:46px;height:40px;margin-right:16px;flex:none}
+.thumb{width:84px;height:64px;border-radius:10px;margin-right:16px;flex:none;overflow:hidden;background:#8fd0ea}
+.note{text-align:center;color:#3a3340;font-size:14px;padding:0 20px}
+.warn{color:#b00020}
+</style>
+</head>
+<body>
+<div id="setup"></div>
+<div id="app">
+  <div id="mapArea">
+    <svg id="map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+    <div id="legend"></div>
+    <div id="banner"></div>
+  </div>
+  <div id="side"></div>
+  <div id="modal"><div id="box"></div></div>
+</div>
+<script>
+const WORLD={"W":1000,"H":560,"T":[{"id":"alaska","name":"Alaska","c":"NA","x":44.0,"y":58.5,"polys":[[[6.5,56.5],[11.0,61.5],[18.5,63.5],[14.0,69.0],[14.0,71.5],[21.5,84.5],[32.5,88.0],[20.0,99.5],[44.0,89.5],[52.5,81.5],[60.5,77.5],[83.5,80.5],[95.5,85.5],[104.5,94.5],[117.0,90.0],[123.5,85.0],[116.0,73.5],[114.0,66.5],[104.0,61.5],[102.0,57.5],[102.5,51.5],[110.5,46.0],[112.0,38.0],[81.5,39.5],[38.5,33.5],[14.0,47.0],[16.0,53.5]]]},{"id":"nwt","name":"Northwest Territory","c":"NA","x":173.5,"y":67.0,"polys":[[[236.0,39.5],[208.5,31.5],[181.0,43.5],[156.0,45.5],[113.0,37.5],[111.0,46.0],[104.5,50.0],[102.5,53.5],[104.0,61.0],[114.5,66.5],[116.5,73.5],[124.0,85.0],[130.5,83.5],[138.0,87.5],[144.0,82.0],[146.5,82.0],[152.0,87.0],[163.0,88.0],[172.5,94.5],[188.5,98.5],[192.5,95.5],[192.0,83.0],[201.0,71.0],[211.5,63.5],[214.0,56.0],[244.5,59.5]]]},{"id":"greenland","name":"Greenland","c":"NA","x":351.5,"y":18,"polys":[[[278.5,8.5],[283.0,13.5],[310.5,18.5],[323.0,43.0],[320.0,55.5],[324.5,67.0],[317.5,78.5],[333.5,74.5],[345.5,77.5],[353.5,57.0],[371.5,40.5],[398.0,27.5],[414.5,0.0],[304.5,0.0],[278.5,7.0]]]},{"id":"alberta","name":"Alberta","c":"NA","x":135.0,"y":105.5,"polys":[[[193.0,96.5],[188.5,99.0],[183.0,96.5],[174.0,95.5],[164.5,89.0],[152.0,87.5],[146.5,82.5],[144.0,82.5],[138.0,88.0],[128.0,84.0],[105.5,95.0],[117.5,117.0],[130.0,124.0],[125.5,126.0],[128.0,146.0],[132.5,143.5],[133.5,135.0],[135.5,132.5],[147.0,128.0],[149.5,118.0],[152.5,115.0],[160.5,116.0],[164.0,122.0],[174.5,122.5],[178.0,130.5],[182.0,131.5],[186.5,122.5],[192.5,117.5],[195.0,111.5],[195.5,102.0]]]},{"id":"ontario","name":"Ontario","c":"NA","x":220.5,"y":123.5,"polys":[[[245.0,60.0],[218.0,56.5],[213.0,57.5],[212.0,63.5],[201.5,71.0],[192.0,84.0],[192.5,94.0],[196.0,102.0],[196.0,109.5],[193.0,117.5],[187.0,122.5],[184.0,130.0],[181.0,132.5],[177.5,130.5],[174.5,123.0],[164.0,122.5],[162.0,126.0],[162.0,131.0],[165.0,142.0],[171.0,144.5],[178.0,152.5],[183.0,155.5],[192.5,155.5],[195.5,153.0],[198.5,153.0],[205.5,157.5],[211.0,157.5],[217.5,155.5],[236.0,156.5],[240.0,154.0],[241.5,141.5],[250.5,130.0],[256.0,128.5],[258.5,120.5],[257.5,115.5],[252.5,113.5],[250.0,109.5],[252.5,102.0],[244.0,107.5],[236.0,97.5],[211.0,85.5],[217.0,75.0],[230.5,67.5],[243.5,64.5]]]},{"id":"quebec","name":"Quebec","c":"NA","x":277.0,"y":102.0,"polys":[[[290.5,79.5],[272.0,73.5],[258.0,75.5],[253.5,94.5],[253.5,102.5],[250.5,109.5],[252.5,113.0],[258.0,115.5],[259.0,120.5],[256.5,128.5],[250.5,130.5],[242.0,141.5],[240.0,149.0],[241.0,154.0],[252.5,158.0],[269.5,147.0],[272.5,148.0],[274.5,153.5],[293.0,140.0],[291.0,126.0],[306.0,128.0],[313.0,111.0]]]},{"id":"wus","name":"Western US","c":"NA","x":164.5,"y":172.5,"polys":[[[152.5,115.5],[150.0,118.0],[147.5,128.0],[135.5,133.0],[133.0,143.5],[130.5,146.0],[126.5,146.0],[127.5,158.5],[131.5,170.5],[137.0,180.5],[142.5,183.5],[151.0,193.0],[157.0,195.0],[157.5,197.5],[159.0,195.5],[161.5,196.0],[164.0,202.0],[171.0,199.0],[177.0,205.0],[183.5,205.0],[195.0,199.5],[198.0,195.0],[198.5,189.5],[193.5,184.5],[192.5,175.5],[197.0,167.5],[197.0,162.0],[200.5,155.0],[195.5,153.5],[192.5,156.0],[181.5,155.5],[171.0,145.0],[165.0,142.5],[161.5,131.0],[163.0,119.5],[159.5,116.0]]]},{"id":"eus","name":"Eastern US","c":"NA","x":225.5,"y":178.0,"polys":[[[272.0,148.0],[268.0,148.0],[252.5,158.5],[242.0,154.5],[236.0,157.0],[217.5,156.0],[205.5,158.0],[200.5,156.5],[197.5,162.0],[197.5,168.0],[202.0,173.0],[206.5,199.5],[209.0,201.0],[216.0,199.5],[226.5,201.0],[233.0,198.5],[241.5,204.0],[244.0,214.0],[249.5,217.5],[247.0,196.0],[260.5,180.0],[260.5,171.5],[265.0,160.0],[273.0,154.0]]]},{"id":"cam","name":"Central America","c":"NA","x":188.5,"y":218.5,"polys":[[[155.0,198.5],[154.5,201.5],[167.5,226.5],[179.0,228.5],[179.0,238.0],[189.0,248.5],[199.5,255.0],[208.0,256.0],[227.0,266.5],[242.0,286.5],[248.5,290.5],[255.5,291.0],[256.5,286.0],[249.5,284.0],[240.0,276.0],[238.5,258.0],[227.5,255.5],[230.5,234.0],[222.0,234.5],[218.5,244.5],[208.0,246.0],[201.0,232.5],[202.5,210.0],[210.5,201.5],[207.0,200.5],[204.5,196.5],[205.0,188.0],[199.5,169.5],[196.5,168.5],[193.0,175.5],[194.0,184.5],[199.0,189.5],[198.5,195.0],[195.0,200.0],[182.0,206.0],[175.0,204.5],[171.0,199.5],[168.0,200.0],[165.0,203.0],[167.5,214.0],[164.0,210.0],[160.0,200.0],[157.0,197.5]]]},{"id":"venezuela","name":"Venezuela","c":"SA","x":277.5,"y":297.0,"polys":[[[260.5,278.5],[256.5,287.5],[256.5,304.0],[250.5,314.0],[254.5,314.5],[261.5,319.5],[261.5,322.0],[258.0,326.0],[259.0,328.5],[263.5,328.0],[269.0,324.0],[282.5,321.5],[288.0,315.5],[298.5,316.5],[313.5,324.0],[321.0,323.5],[327.5,318.5],[328.5,312.5],[331.0,309.5],[327.5,300.0],[313.5,296.0],[299.5,277.0],[283.0,277.5],[271.0,272.5]]]},{"id":"peru","name":"Peru","c":"SA","x":273.5,"y":352.5,"polys":[[[250.5,314.5],[247.0,340.5],[254.0,355.5],[262.0,380.0],[276.5,392.0],[274.0,418.0],[296.0,406.5],[295.0,404.0],[288.5,401.5],[282.5,395.5],[280.0,388.0],[281.0,381.5],[293.5,373.0],[296.0,369.0],[295.5,360.5],[293.0,355.5],[294.5,345.0],[286.5,337.5],[283.5,329.5],[292.0,317.0],[288.0,316.0],[282.5,322.0],[269.0,324.5],[263.5,328.5],[259.0,329.0],[257.5,326.0],[261.0,322.0],[261.0,319.5],[254.5,315.0]]]},{"id":"brazil","name":"Brazil","c":"SA","x":331.5,"y":361.5,"polys":[[[293.5,317.0],[284.5,327.0],[284.0,329.5],[287.0,337.5],[295.0,345.0],[293.5,355.5],[296.0,360.5],[296.5,369.0],[293.5,373.5],[281.5,381.5],[281.5,392.5],[288.5,401.0],[310.0,409.5],[313.5,414.0],[313.5,422.5],[315.0,424.5],[324.5,423.5],[329.0,426.5],[333.5,426.5],[337.0,425.0],[349.5,412.0],[359.5,408.0],[363.5,391.0],[365.0,374.0],[374.5,358.0],[374.5,344.0],[366.5,336.0],[339.0,324.5],[331.5,310.5],[329.0,312.5],[327.0,320.0],[319.5,324.5],[313.5,324.5],[300.0,317.5]]]},{"id":"argentina","name":"Argentina","c":"SA","x":298.0,"y":442.5,"polys":[[[299.0,405.5],[274.0,418.5],[273.5,445.0],[268.0,471.0],[268.0,492.5],[263.0,510.5],[265.5,529.0],[272.0,538.0],[280.5,540.0],[280.5,529.5],[288.5,508.5],[291.5,490.0],[298.5,484.0],[300.5,475.5],[313.5,472.0],[312.0,462.5],[325.0,455.5],[334.5,439.0],[336.5,432.5],[336.5,426.0],[330.5,427.5],[324.5,424.0],[315.0,425.0],[313.0,422.5],[312.0,412.0],[308.5,409.0]]]},{"id":"iceland","name":"Iceland","c":"EU","x":399.5,"y":47.0,"polys":[[[413.5,41.0],[410.5,38.5],[393.5,42.5],[388.0,49.0],[393.0,53.0],[403.5,52.0],[413.5,43.0]]]},{"id":"gb","name":"Great Britain","c":"EU","x":445.0,"y":105.0,"polys":[[[429.0,90.5],[423.0,88.0],[414.5,95.0],[415.5,101.0],[413.5,109.0],[420.5,110.0],[427.0,106.0]],[[439.0,67.0],[434.0,67.5],[429.0,74.5],[432.0,89.5],[437.5,91.0],[438.0,98.5],[432.0,102.0],[433.5,108.5],[429.5,109.0],[428.0,119.5],[454.0,113.0],[456.0,111.0],[457.5,101.5],[451.0,97.5],[443.0,81.5],[445.0,72.0]]]},{"id":"scand","name":"Scandinavia","c":"EU","x":510.5,"y":47.5,"polys":[[[612.5,40.0],[608.0,33.0],[599.5,32.0],[562.0,12.5],[547.0,10.5],[527.5,13.0],[516.5,17.5],[497.0,34.0],[476.5,42.5],[474.5,52.0],[477.0,63.0],[486.5,66.5],[500.5,63.5],[509.5,82.0],[512.5,82.5],[524.0,79.0],[534.0,61.0],[530.0,57.5],[529.5,46.5],[535.5,37.0],[547.5,29.0],[556.5,33.5],[545.5,41.0],[546.5,51.0],[555.0,58.0],[567.5,59.0],[569.0,57.0],[569.0,49.0],[574.0,45.5],[577.0,49.5],[586.5,55.5],[590.5,56.5],[596.0,54.5],[600.0,61.0],[605.0,61.0],[610.0,57.0],[610.5,45.5],[603.5,46.0],[607.0,40.0]]]},{"id":"ukraine","name":"Ukraine","c":"EU","x":601.0,"y":106.5,"polys":[[[571.5,46.5],[569.5,49.0],[568.5,59.5],[574.5,60.5],[559.0,65.0],[557.5,67.0],[561.5,79.5],[569.0,84.5],[569.0,91.0],[572.0,99.5],[569.5,117.5],[580.0,125.0],[580.0,127.5],[574.0,130.0],[570.0,136.0],[582.0,147.0],[589.0,141.0],[593.5,143.0],[592.0,146.5],[593.0,151.0],[609.5,136.5],[607.0,151.0],[611.0,156.0],[615.5,157.5],[619.5,151.5],[619.0,132.5],[630.5,120.5],[640.5,120.0],[641.0,114.0],[645.0,105.5],[644.0,99.5],[634.5,92.0],[633.0,84.0],[629.0,84.0],[626.5,89.0],[624.0,90.0],[617.0,80.5],[617.0,68.5],[620.5,55.0],[616.5,42.5],[611.5,45.0],[610.5,57.0],[605.0,61.5],[600.0,61.5],[596.0,55.0],[588.5,57.0],[577.0,50.0],[574.0,46.0]]]},{"id":"neu","name":"Northern Europe","c":"EU","x":526.5,"y":112.0,"polys":[[[462.5,109.5],[463.5,111.5],[470.0,114.0],[472.5,120.5],[478.0,126.0],[481.5,136.0],[490.0,135.0],[500.5,140.5],[504.5,145.5],[506.0,152.0],[512.0,150.0],[513.5,147.5],[513.5,140.0],[509.5,134.5],[511.0,131.0],[521.5,136.5],[526.0,137.0],[533.0,132.5],[541.5,131.5],[544.5,127.5],[555.0,128.0],[561.5,125.5],[567.0,126.0],[573.5,129.5],[579.5,127.5],[579.5,125.0],[569.0,117.5],[571.5,99.5],[568.5,91.0],[568.5,84.5],[561.0,79.5],[558.0,71.5],[556.0,73.0],[547.5,71.5],[546.5,80.0],[536.0,88.5],[514.0,92.0],[498.0,87.5],[498.5,71.0],[495.0,70.5],[488.0,76.0],[488.5,93.5],[474.5,97.0]]]},{"id":"weu","name":"Western Europe","c":"EU","x":464.5,"y":146.0,"polys":[[[462.5,111.0],[460.0,112.0],[455.0,119.5],[445.0,127.0],[433.0,130.0],[445.5,146.0],[445.5,160.5],[420.5,158.5],[424.5,191.5],[432.5,193.5],[436.0,198.0],[440.0,196.0],[448.0,197.5],[454.0,191.0],[452.5,184.0],[457.0,176.5],[465.0,172.5],[465.5,165.0],[482.5,162.5],[490.0,158.0],[496.0,160.5],[501.0,170.5],[508.5,175.5],[509.5,162.5],[503.0,143.5],[490.0,135.5],[481.5,136.5],[479.5,134.5],[477.5,126.0],[472.0,120.5],[469.5,114.0]]]},{"id":"seu","name":"Southern Europe","c":"EU","x":552.5,"y":153.5,"polys":[[[581.0,172.5],[574.5,174.5],[566.5,180.5],[566.5,189.5],[568.0,192.5],[577.0,183.5]],[[511.0,161.5],[509.0,168.0],[509.0,176.5],[521.5,184.5],[522.5,193.5],[524.0,194.5],[527.5,191.0],[526.0,187.0],[528.0,183.0],[533.0,181.5],[524.5,174.0],[519.0,173.0],[514.0,163.0]],[[510.0,132.0],[514.5,142.0],[513.5,150.0],[517.5,152.5],[521.5,159.5],[539.5,173.5],[538.5,181.5],[542.5,186.5],[545.5,199.5],[550.0,200.0],[552.5,195.0],[550.5,191.5],[554.0,187.0],[552.5,180.0],[568.5,174.5],[572.5,169.5],[581.5,148.5],[581.0,145.5],[574.0,141.5],[569.5,136.0],[573.0,129.5],[564.5,126.0],[555.0,128.5],[544.5,128.0],[541.5,132.0],[533.0,133.0],[526.0,137.5],[521.5,137.0],[512.5,131.5]]]},{"id":"nafrica","name":"North Africa","c":"AF","x":470.0,"y":242.5,"polys":[[[500.5,200.5],[496.0,199.0],[461.5,200.0],[451.0,205.0],[437.5,199.5],[435.5,206.5],[430.5,209.0],[428.0,224.0],[424.0,227.5],[422.5,233.5],[418.5,239.5],[418.0,246.0],[420.5,250.5],[420.5,267.0],[426.0,278.0],[433.5,286.0],[438.5,294.5],[450.0,304.5],[459.5,302.0],[465.5,302.5],[465.0,293.0],[468.0,287.5],[473.5,283.0],[481.5,282.5],[486.0,285.5],[492.0,296.0],[498.0,297.0],[502.0,300.0],[507.0,310.5],[511.0,311.0],[516.5,307.0],[528.0,289.5],[535.5,281.5],[527.0,270.0],[527.0,265.5],[529.5,261.0],[528.5,257.5],[513.0,239.0],[520.0,228.5],[521.0,224.0],[502.0,216.0],[498.0,211.0]]]},{"id":"egypt","name":"Egypt","c":"AF","x":543.5,"y":244.0,"polys":[[[577.5,216.5],[554.0,219.5],[536.5,224.5],[533.5,227.0],[521.5,224.0],[520.5,228.5],[514.0,237.0],[514.0,240.0],[529.0,257.5],[530.0,261.0],[527.5,265.5],[527.5,270.0],[536.5,280.5],[540.0,281.5],[542.0,271.0],[546.0,267.0],[554.0,263.5],[560.0,254.5],[566.5,250.0],[571.0,250.5],[578.0,258.5],[584.5,260.0],[581.5,236.0],[577.0,221.0]]]},{"id":"eafrica","name":"East Africa","c":"AF","x":569.5,"y":285.5,"polys":[[[566.5,250.5],[560.5,254.5],[554.0,264.0],[546.0,267.5],[542.5,271.0],[540.0,283.5],[543.5,292.5],[544.0,303.0],[560.0,311.5],[556.5,321.5],[551.0,328.0],[552.0,343.0],[560.0,353.5],[569.0,356.0],[571.0,361.0],[583.5,359.5],[581.0,350.5],[581.5,339.5],[593.5,317.0],[602.0,306.5],[614.5,281.5],[615.5,275.5],[597.5,281.0],[591.0,268.0],[586.0,264.0],[585.0,260.5],[578.0,259.0],[571.0,251.0]]]},{"id":"congo","name":"Congo","c":"AF","x":527.0,"y":330.0,"polys":[[[471.5,284.5],[465.5,293.0],[466.5,303.0],[476.5,299.0],[484.0,299.0],[488.0,306.0],[495.5,305.0],[499.0,308.0],[498.0,330.0],[505.5,342.0],[510.0,364.5],[508.0,373.0],[510.5,377.5],[516.0,377.5],[521.5,382.5],[526.0,383.0],[541.0,377.0],[546.5,368.5],[553.5,364.5],[562.0,363.0],[568.5,367.5],[584.5,364.5],[584.0,360.0],[576.0,360.0],[571.5,362.5],[569.0,356.5],[560.0,354.0],[552.5,345.0],[550.5,328.0],[556.0,321.5],[559.5,311.5],[543.5,303.0],[543.0,292.5],[539.0,282.0],[536.0,281.5],[531.0,286.5],[517.0,307.0],[511.0,311.5],[508.0,311.5],[505.0,309.0],[500.0,298.5],[490.5,295.0],[484.0,284.0],[475.0,283.0]]]},{"id":"safrica","name":"South Africa","c":"AF","x":539.5,"y":409.0,"polys":[[[584.5,365.0],[572.0,368.0],[566.5,367.5],[562.0,363.5],[553.5,365.0],[547.0,368.5],[541.0,377.5],[526.0,383.5],[521.5,383.0],[516.0,378.0],[510.5,378.0],[507.0,374.0],[504.5,389.0],[512.0,411.5],[514.0,428.0],[518.5,435.0],[522.5,447.5],[523.5,457.0],[529.0,458.5],[534.0,456.0],[543.5,455.5],[557.5,441.5],[562.0,434.0],[563.5,424.0],[570.5,416.0],[568.0,399.0],[585.0,381.0]]]},{"id":"madagascar","name":"Madagascar","c":"AF","x":602.0,"y":391.5,"polys":[[[609.5,369.5],[607.0,371.0],[601.5,382.0],[594.0,388.0],[595.0,398.5],[592.5,405.5],[593.0,413.5],[597.5,421.5],[603.5,418.0],[612.0,382.5]]]},{"id":"ural","name":"Ural","c":"AS","x":667.0,"y":97.0,"polys":[[[672.5,27.5],[664.0,28.0],[659.5,39.5],[647.0,36.5],[641.5,39.5],[623.0,39.0],[617.0,41.5],[621.0,55.0],[617.5,68.5],[617.5,80.5],[624.0,89.5],[626.0,89.0],[629.0,83.5],[633.0,83.5],[635.0,92.0],[643.5,98.0],[645.5,105.5],[641.5,114.0],[641.0,120.5],[646.5,124.0],[654.0,133.0],[667.5,133.0],[679.0,121.5],[682.0,120.5],[698.0,123.0],[689.5,104.0],[689.5,89.5],[681.5,74.0],[675.5,67.5],[667.0,64.5],[662.5,58.5],[662.5,51.0]]]},{"id":"siberia","name":"Siberia","c":"AS","x":709.5,"y":56.0,"polys":[[[782.0,13.5],[764.0,7.5],[750.0,7.5],[741.5,15.0],[712.0,17.5],[713.5,23.5],[694.5,25.5],[682.0,31.0],[675.5,45.0],[675.5,27.5],[673.0,27.5],[663.0,51.0],[663.0,58.5],[667.0,64.0],[675.5,67.0],[682.0,74.0],[690.0,89.5],[690.0,104.0],[699.0,123.0],[706.0,121.0],[710.5,113.5],[721.0,116.0],[729.5,113.0],[734.0,109.0],[736.5,94.0],[730.5,85.0],[730.5,81.0],[738.0,77.5],[744.5,69.5],[751.5,65.5],[758.5,58.5],[761.5,53.5],[761.5,41.0],[752.5,34.0],[752.0,30.0],[755.5,27.5],[764.5,26.5],[769.0,19.5],[779.0,16.5]]]},{"id":"yakutsk","name":"Yakutsk","c":"AS","x":829.0,"y":66.5,"polys":[[[753.5,29.0],[753.0,34.0],[761.0,39.5],[769.5,58.5],[775.5,64.5],[774.5,69.0],[767.0,70.5],[764.0,73.5],[764.5,76.0],[773.0,83.5],[767.5,91.5],[768.5,96.5],[771.0,99.0],[773.5,99.0],[780.5,88.5],[792.5,90.0],[798.5,85.0],[801.5,84.5],[805.5,88.0],[811.5,98.0],[811.0,110.5],[813.0,113.0],[818.0,115.0],[828.0,124.5],[841.0,128.0],[847.0,132.5],[855.5,133.5],[862.5,120.0],[863.5,107.5],[852.5,103.0],[858.0,93.0],[858.0,80.0],[861.0,77.5],[869.0,76.0],[869.0,73.5],[864.5,67.0],[864.5,44.5],[855.0,37.0],[857.5,30.5],[830.5,35.5],[825.0,25.5],[804.5,26.5],[790.0,24.0],[783.5,14.5],[769.0,20.0],[762.5,28.0]]]},{"id":"kamchatka","name":"Kamchatka","c":"AS","x":889.5,"y":58.0,"polys":[[[858.0,90.5],[859.5,91.0],[866.5,83.5],[886.0,81.5],[900.0,82.5],[908.0,88.5],[905.5,91.5],[906.5,111.5],[908.0,114.5],[917.0,107.0],[930.5,79.0],[944.0,79.5],[953.5,73.0],[968.0,69.5],[972.5,59.5],[988.5,61.5],[998.5,55.0],[967.0,43.0],[945.5,39.5],[915.5,39.5],[889.5,33.5],[860.0,29.5],[856.5,33.0],[855.5,37.0],[863.0,41.5],[865.0,44.5],[865.0,67.0],[870.0,75.0],[858.5,80.0]]]},{"id":"irkutsk","name":"Irkutsk","c":"AS","x":752.0,"y":87.0,"polys":[[[731.0,81.0],[731.0,85.0],[737.0,94.0],[736.0,106.0],[743.5,104.0],[749.5,114.5],[766.5,123.0],[773.5,130.0],[781.5,123.5],[792.5,126.0],[792.5,115.5],[795.5,111.5],[803.5,113.5],[810.0,120.0],[816.5,119.5],[822.5,122.0],[818.0,115.5],[811.0,111.5],[811.0,98.0],[801.5,85.0],[798.5,85.5],[792.5,90.5],[780.5,89.0],[772.5,100.0],[768.0,96.5],[767.0,91.5],[772.5,83.5],[764.0,76.0],[763.5,73.5],[767.0,70.0],[774.5,68.5],[775.0,64.5],[769.0,58.5],[763.5,48.5],[759.0,58.5],[751.5,66.0],[744.5,70.0],[738.0,78.0]]]},{"id":"mongolia","name":"Mongolia","c":"AS","x":737.5,"y":140.0,"polys":[[[700.0,123.5],[706.5,130.0],[711.0,156.0],[706.0,157.5],[704.0,160.0],[707.5,171.0],[718.5,165.0],[726.0,165.0],[738.0,175.0],[748.5,172.5],[754.5,179.0],[757.0,179.0],[763.5,174.0],[772.0,173.5],[776.0,171.5],[792.0,173.0],[800.0,167.0],[800.0,163.0],[809.0,156.5],[809.5,162.5],[818.5,162.0],[821.5,168.0],[828.0,168.5],[831.5,163.5],[831.5,156.0],[835.0,151.0],[847.0,146.0],[854.5,135.0],[818.5,120.5],[810.0,120.5],[805.0,115.0],[798.0,112.0],[793.5,113.5],[792.5,126.5],[781.5,124.0],[773.5,130.5],[766.5,123.5],[749.5,115.0],[743.5,104.5],[738.0,105.5],[731.0,112.5],[723.0,116.0],[718.5,116.5],[710.5,114.0],[706.0,121.5]]]},{"id":"japan","name":"Japan","c":"AS","x":857.0,"y":175.5,"polys":[[[831.0,166.0],[827.5,169.5],[823.5,181.0],[831.0,176.0]],[[867.0,138.5],[865.5,139.5],[864.5,146.0],[861.0,149.5],[860.5,166.5],[857.5,170.0],[852.5,171.5],[849.5,177.5],[841.5,178.0],[835.5,182.5],[832.5,187.0],[833.5,194.5],[837.0,194.0],[839.5,187.0],[850.0,186.0],[853.5,181.5],[860.5,180.0],[863.5,177.0],[863.5,167.0],[866.5,161.5],[865.0,154.5],[876.0,147.0]]]},{"id":"afghanistan","name":"Afghanistan","c":"AS","x":668.0,"y":164.0,"polys":[[[629.0,122.0],[619.5,132.5],[620.0,151.5],[613.5,161.5],[617.5,167.0],[622.5,182.5],[636.5,184.5],[641.5,191.5],[644.5,201.5],[649.0,205.5],[668.0,207.0],[688.5,200.0],[696.0,176.0],[697.5,174.5],[704.5,175.0],[707.0,172.5],[703.5,160.0],[706.0,157.0],[710.0,156.5],[710.5,153.5],[706.0,130.0],[699.0,124.0],[682.0,121.0],[679.0,122.0],[667.5,133.5],[654.0,133.5],[646.5,124.5],[640.5,120.5],[633.0,120.0]]]},{"id":"china","name":"China","c":"AS","x":777.5,"y":202.5,"polys":[[[707.0,173.0],[707.5,178.0],[713.5,186.5],[732.0,192.0],[737.5,196.5],[745.0,213.0],[751.0,216.5],[756.0,226.0],[761.5,228.5],[769.5,236.0],[773.5,233.0],[780.0,235.5],[795.5,228.0],[804.0,218.0],[811.0,202.5],[808.5,193.0],[802.5,182.0],[811.5,172.0],[803.0,171.0],[801.0,167.5],[792.0,173.5],[776.0,172.0],[772.0,174.0],[763.5,174.5],[757.0,179.5],[754.5,179.5],[748.5,173.0],[738.0,175.5],[726.0,165.5],[717.0,166.0]]]},{"id":"mideast","name":"Middle East","c":"AS","x":609.5,"y":243.5,"polys":[[[614.5,164.0],[604.5,168.5],[595.5,166.0],[582.5,172.0],[577.5,183.5],[569.5,192.0],[569.5,195.5],[574.0,196.5],[584.0,195.5],[591.0,192.0],[592.5,197.0],[583.5,214.5],[582.5,226.0],[587.0,243.5],[591.5,252.0],[594.5,273.0],[599.5,272.5],[609.5,267.5],[626.5,255.5],[635.0,246.5],[641.0,234.0],[634.5,227.0],[634.0,222.0],[628.5,228.0],[621.5,228.0],[618.0,209.5],[623.5,208.0],[629.0,218.5],[635.0,217.0],[637.0,221.5],[649.5,222.0],[648.0,215.5],[648.5,205.5],[644.0,201.5],[639.0,187.5],[633.5,184.0],[623.5,184.0]]]},{"id":"india","name":"India","c":"AS","x":695.0,"y":223.0,"polys":[[[695.0,281.5],[693.5,295.0],[699.5,295.0],[699.5,285.5]],[[706.5,175.0],[696.5,176.0],[693.0,184.5],[691.0,197.0],[688.5,200.5],[668.0,207.5],[649.0,207.0],[650.0,222.0],[660.0,221.5],[668.5,237.0],[675.0,236.0],[679.5,263.0],[687.0,287.0],[694.0,278.5],[695.0,258.0],[702.5,252.0],[713.0,238.0],[719.5,233.0],[726.5,230.0],[729.0,231.5],[731.0,229.0],[735.0,233.0],[738.0,233.0],[746.0,224.0],[742.5,209.0],[737.0,196.5],[732.0,192.5],[713.5,187.0],[708.5,181.0]]]},{"id":"siam","name":"Siam","c":"AS","x":751.5,"y":241.5,"polys":[[[743.5,212.5],[746.5,221.0],[746.0,225.0],[736.5,234.0],[730.5,230.0],[728.0,232.5],[728.0,235.5],[733.0,244.0],[734.5,256.0],[743.5,254.5],[745.0,288.5],[753.5,306.5],[760.5,313.5],[759.0,304.0],[751.5,293.0],[748.0,284.5],[750.5,267.5],[751.5,266.5],[755.5,270.5],[758.5,279.0],[764.0,285.0],[775.5,274.0],[774.5,262.5],[766.5,248.0],[769.5,236.5],[761.5,229.0],[756.0,226.5],[750.5,216.5]]]},{"id":"indonesia","name":"Indonesia","c":"AU","x":785.5,"y":321.5,"polys":[[[765.0,346.5],[768.5,350.0],[790.0,354.5],[790.0,351.0],[783.0,346.5],[768.0,344.0]],[[816.0,314.0],[808.0,314.5],[804.0,342.0],[806.5,342.0],[807.0,332.5],[809.0,338.5],[813.5,339.0],[809.5,328.0],[812.5,324.5],[810.0,318.0]],[[737.0,298.0],[745.5,312.0],[756.0,336.0],[762.5,343.0],[766.0,343.0],[766.0,331.0],[750.5,311.5],[743.5,299.5]],[[798.0,292.5],[780.5,313.5],[775.0,314.0],[779.0,332.0],[789.5,336.0],[795.5,334.0],[794.0,324.0],[799.0,316.0],[802.5,301.0]]]},{"id":"newguinea","name":"New Guinea","c":"AU","x":866.5,"y":344.0,"polys":[[[836.5,325.0],[840.5,336.0],[846.0,335.5],[854.0,340.5],[857.5,347.5],[857.0,353.5],[862.5,356.0],[870.0,356.5],[873.0,351.5],[887.0,360.5],[883.0,352.5],[881.5,344.5],[864.5,330.5],[845.5,323.5]]]},{"id":"wau","name":"Western Australia","c":"AU","x":823.0,"y":421.0,"polys":[[[851.5,368.5],[840.5,366.0],[834.0,370.0],[831.0,379.5],[822.0,376.5],[818.0,385.0],[805.0,400.0],[796.0,402.0],[787.5,408.0],[787.5,425.0],[791.5,439.5],[791.5,456.0],[801.0,459.5],[822.5,448.5],[839.5,446.5],[845.0,440.5],[853.5,421.5],[853.0,413.0],[848.5,408.5],[850.0,397.0],[856.0,390.5],[856.0,386.5],[848.0,378.5],[852.0,370.5]]]},{"id":"eau","name":"Eastern Australia","c":"AU","x":874.0,"y":436.0,"polys":[[[867.5,364.5],[865.5,370.0],[865.5,385.5],[859.0,389.5],[856.5,388.0],[856.0,391.5],[850.0,398.5],[849.0,408.5],[853.5,413.0],[854.0,421.5],[846.5,439.0],[840.0,448.0],[845.0,450.5],[848.5,458.0],[855.0,453.0],[854.0,462.0],[860.5,465.5],[862.5,472.0],[878.5,476.0],[884.0,471.0],[888.5,469.5],[891.0,457.0],[896.5,446.0],[898.5,431.0],[895.5,417.5],[886.5,402.5],[878.5,395.5],[876.0,380.0],[871.0,376.0]]]}],"E":[["afghanistan","china"],["afghanistan","india"],["afghanistan","mideast"],["afghanistan","ukraine"],["afghanistan","ural"],["alaska","alberta"],["alaska","kamchatka"],["alaska","nwt"],["alberta","nwt"],["alberta","ontario"],["alberta","wus"],["argentina","brazil"],["argentina","peru"],["brazil","nafrica"],["brazil","peru"],["brazil","venezuela"],["cam","eus"],["cam","venezuela"],["cam","wus"],["china","india"],["china","mongolia"],["china","siam"],["china","siberia"],["china","ural"],["congo","eafrica"],["congo","nafrica"],["congo","safrica"],["eafrica","egypt"],["eafrica","madagascar"],["eafrica","mideast"],["eafrica","nafrica"],["eafrica","safrica"],["eau","newguinea"],["eau","wau"],["egypt","mideast"],["egypt","nafrica"],["egypt","seu"],["eus","ontario"],["eus","quebec"],["eus","wus"],["gb","iceland"],["gb","neu"],["gb","scand"],["gb","weu"],["greenland","iceland"],["greenland","nwt"],["greenland","ontario"],["greenland","quebec"],["iceland","scand"],["india","mideast"],["india","siam"],["indonesia","newguinea"],["indonesia","siam"],["indonesia","wau"],["irkutsk","kamchatka"],["irkutsk","mongolia"],["irkutsk","siberia"],["irkutsk","yakutsk"],["japan","kamchatka"],["japan","mongolia"],["kamchatka","mongolia"],["kamchatka","yakutsk"],["madagascar","safrica"],["mideast","seu"],["mideast","ukraine"],["mongolia","siberia"],["nafrica","seu"],["nafrica","weu"],["neu","scand"],["neu","seu"],["neu","ukraine"],["neu","weu"],["newguinea","wau"],["nwt","ontario"],["ontario","quebec"],["ontario","wus"],["peru","venezuela"],["scand","ukraine"],["seu","ukraine"],["seu","weu"],["siberia","ural"],["siberia","yakutsk"],["ukraine","ural"]]};WORLD.id='classic';WORLD.name='Classic World';WORLD.wrap=true;WORLD.vector=true;
+let MAP,TER,NAME,CONT_OF,ADJ,POS,CONT,RAS=null;
+const WORLD_CONT={NA:{name:'North America',bonus:5,color:'#e3b341'},SA:{name:'South America',bonus:2,color:'#e0664d'},
+ EU:{name:'Europe',bonus:5,color:'#5d8fe0'},AF:{name:'Africa',bonus:3,color:'#c98a4b'},
+ AS:{name:'Asia',bonus:7,color:'#5fbf6a'},AU:{name:'Australia',bonus:2,color:'#b36ccc'}};
+const _cx=document.createElement('canvas').getContext('2d');
+function cssHex(c){_cx.fillStyle='#888888';try{_cx.fillStyle=c}catch(e){}const v=_cx.fillStyle;return /^#[0-9a-f]{6}$/i.test(v)?v:'#888888'}
+function setMapData(m){MAP=m;TER=m.T;NAME={};CONT_OF={};ADJ={};POS={};
+ if(m.vector)CONT=WORLD_CONT;else{CONT={};(m.conts||[]).forEach((c,i)=>CONT[String(i)]={name:c.name,bonus:c.bonus|0,color:cssHex(c.color)});
+  TER.forEach(t=>{t.c=String(t.c);if(!CONT[t.c])CONT[t.c]={name:'Other',bonus:0,color:'#888888'}})}
+ TER.forEach(t=>{NAME[t.id]=t.name;CONT_OF[t.id]=t.c;ADJ[t.id]=[];POS[t.id]=[t.x,t.y]});
+ m.E.forEach(([a,b])=>{if(ADJ[a]&&ADJ[b]&&a!==b&&!ADJ[a].includes(b)){ADJ[a].push(b);ADJ[b].push(a)}})}
+setMapData(WORLD);
+const PCOL={Blue:{fill:'#2132a8',text:'#10239a'},Red:{fill:'#a8191e',text:'#a01015'},Green:{fill:'#1f9a6e',text:'#12966a'},
+ Yellow:{fill:'#f2a12a',text:'#f39c12'},Black:{fill:'#4a4a4a',text:'#2a2a2a'},Purple:{fill:'#7a2aa0',text:'#7a2aa0'}};
+const TYPES=[['human','Human Player'],['easy','Easy AI'],['normal','Medium AI'],['hard','Hard AI'],['random','Random AI'],['off','OFF']];
+const TYPENAME=Object.fromEntries(TYPES);
+const SEQS={lux:{label:'4, 6, 8, 10, 15, 20...',v:[4,6,8,10,15,20]},classic:{label:'4, 6, 8, 10, 12, 15...',v:[4,6,8,10,12,15]}};
+const GROW=[[0,'None'],[0.05,'+5% per round'],[0.1,'+10% per round']];
+const SPEEDS={slow:700,regular:300,fast:70};
+const SPEEDNAME={slow:'Slow',regular:'Regular',fast:'Fast'};
+const CARDSYM=['♟︎','♞︎','♜︎','★'];
+const CARDNAME=['Infantry','Cavalry','Artillery','Wild'];
+const $=s=>document.querySelector(s);
+let G=null,busy=false,modalLock=false,bonusView=false;
+const rnd=n=>Math.floor(Math.random()*n);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function shade(hex,f){let n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;
+ const m=v=>Math.round(f>0?v+(255-v)*f:v*(1+f));return'#'+[m(r),m(g),m(b)].map(v=>v.toString(16).padStart(2,'0')).join('')}
+
+/* ---------- rules ---------- */
+const isHuman=p=>!p.ai;
+function ownsCont(pi,c){return TER.every(t=>t.c!==c||G.owner[t.id]===pi)}
+function enemyNbrs(id){return ADJ[id].filter(n=>G.owner[n]!==G.owner[id])}
+function connected(src){const o=G.owner[src],seen=new Set([src]),q=[src];while(q.length){const c=q.pop();for(const n of ADJ[c])if(!seen.has(n)&&G.owner[n]===o){seen.add(n);q.push(n)}}return seen}
+function contBonus(c){return Math.round(CONT[c].bonus*(1+G.grow*(G.turn-1)))}
+function calcReinf(pi){const n=TER.filter(t=>G.owner[t.id]===pi).length;let r=Math.max(3,Math.floor(n/3));for(const c in CONT)if(ownsCont(pi,c))r+=contBonus(c);return r}
+function tradeValue(k){const v=SEQS[G.seq].v;return k<v.length?v[k]:v[v.length-1]+5*(k-v.length+1)}
+function isSet(cs){if(cs.length!==3)return false;if(cs.some(c=>c.s===3))return true;const s=new Set(cs.map(c=>c.s));return s.size===1||s.size===3}
+function findSet(cards){let fb=null;for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++)for(let k=j+1;k<cards.length;k++){const cs=[cards[i],cards[j],cards[k]];if(isSet(cs)){if(!cs.some(c=>c.s===3))return[i,j,k];fb=fb||[i,j,k]}}return fb}
+function log(m){G.log.push(m);if(G.log.length>300)G.log.shift()}
+function doTrade(pi,idxs){const p=G.players[pi],val=tradeValue(G.trades);G.trades++;
+ const cs=idxs.map(i=>p.cards[i]);p.cards=p.cards.filter((c,i)=>!idxs.includes(i));
+ let bt=null;for(const c of cs)if(c.t&&G.owner[c.t]===pi){bt=c.t;break}
+ if(bt)G.armies[bt]+=2;G.deck.push(...cs);shuffle(G.deck);G.reinforce+=val;
+ log(`${p.name} cashed cards for ${val} armies${bt?` (+2 on ${NAME[bt]})`:''}`);return val}
+function battle(f,t){const a=Math.min(3,G.armies[f]-1),d=Math.min(2,G.armies[t]);
+ const roll=n=>Array.from({length:n},()=>1+rnd(6)).sort((x,y)=>y-x);const ad=roll(a),dd=roll(d);let al=0,dl=0;
+ for(let i=0;i<Math.min(a,d);i++){if(ad[i]>dd[i])dl++;else al++}
+ G.armies[f]-=al;G.armies[t]-=dl;if(G.armies[t]<0)G.armies[t]=0;return{won:G.armies[t]===0,a}}
+function capture(f,t){const def=G.owner[t];G.owner[t]=G.cur;G.conquered=true;
+ log(`${G.players[G.cur].name} took ${NAME[t]} from ${G.players[def].name}`);
+ if(!TER.some(x=>G.owner[x.id]===def)){const dp=G.players[def];dp.alive=false;G.players[G.cur].cards.push(...dp.cards);dp.cards=[];log(`${G.players[G.cur].name} eliminated ${dp.name}!`)}}
+function moveArmies(f,t,n){G.armies[f]-=n;G.armies[t]+=n}
+function checkWin(){const alive=G.players.filter(p=>p.alive),hadHuman=G.players.some(isHuman),humans=alive.filter(isHuman);
+ if(alive.length===1||(hadHuman&&!humans.length)){G.phase='over';G.sel=null;G.prompt=null;save();render();
+  const w=alive.length===1?alive[0]:null;
+  showModal(`<h2>${w?w.name+' wins!':'All human players are out'}</h2><p>Game ended on round ${G.turn}.</p><div class="btns"><button class="btn pri" onclick="toSetup()">New Game</button><button class="btn" onclick="hideModal()">View Map</button></div>`,true);return true}
+ return false}
+
+/* ---------- flow ---------- */
+async function newGame(cfg){if(!(await loadMap(cfg.map||'classic'))){CFG.map='classic';saveCfg();await loadMap('classic')}buildMap();const slots=cfg.players.filter(p=>p.type!=='off');
+ const players=slots.map(s=>({name:s.color,color:PCOL[s.color].fill,text:PCOL[s.color].text,ai:s.type==='human'?null:s.type==='random'?['easy','normal','hard'][rnd(3)]:s.type,alive:true,cards:[]}));
+ const n=players.length,owner={},armies={},ids=shuffle(TER.map(t=>t.id));
+ ids.forEach((id,i)=>{owner[id]=i%n;armies[id]=1});
+ const start=Math.max(Math.ceil(TER.length/n)+2,Math.round({2:40,3:35,4:30,5:25,6:20}[n]*TER.length/42));
+ for(let p=0;p<n;p++){const mine=ids.filter(id=>owner[id]===p);let left=start-mine.length;while(left-->0)armies[mine[rnd(mine.length)]]++}
+ const deck=shuffle(TER.map((t,i)=>({t:t.id,s:i%3})));
+ G={players,owner,armies,deck,cur:rnd(n),phase:'reinforce',reinforce:0,conquered:false,trades:0,sel:null,
+  gid:Math.random(),map:MAP.id,speed:cfg.speed,seq:cfg.seq,grow:cfg.grow,atk:'one',mv:'manual',step:1,arrived:{},prompt:null,log:[],turn:1,msg:null};
+ enterGame();startTurn()}
+function startTurn(){const p=G.players[G.cur];
+ G.phase='reinforce';G.conquered=false;G.sel=null;G.arrived={};G.prompt=null;G.reinforce=calcReinf(G.cur);
+ log(`Round ${G.turn}: ${p.name} gets ${G.reinforce} armies`);save();render();
+ if(p.ai)runAI();else maybePrompt()}
+function endTurn(){if(busy&&!G.players[G.cur].ai)return;const p=G.players[G.cur];
+ if(G.conquered&&G.deck.length)p.cards.push(G.deck.pop());
+ const prev=G.cur;do{G.cur=(G.cur+1)%G.players.length}while(!G.players[G.cur].alive);
+ if(G.cur<=prev)G.turn++;startTurn()}
+
+/* ---------- AI ---------- */
+function aiGoal(pi){let best=null,bs=-1;for(const c in CONT){const ts=TER.filter(t=>t.c===c),own=ts.filter(t=>G.owner[t.id]===pi).length;if(own===ts.length)continue;
+ const enemy=ts.filter(t=>G.owner[t.id]!==pi).reduce((s,t)=>s+G.armies[t.id],0);const s=(contBonus(c)+1)*(own+1)/(enemy+ts.length);if(s>bs){bs=s;best=c}}return best}
+function aiPlace(pi,lvl){let n=G.reinforce;if(n<=0)return;
+ const borders=TER.filter(t=>G.owner[t.id]===pi&&enemyNbrs(t.id).length).map(t=>t.id);
+ if(!borders.length){G.armies[TER.find(t=>G.owner[t.id]===pi).id]+=n;G.reinforce=0;return}
+ if(lvl==='easy'){while(n>0){const k=Math.min(n,1+rnd(3));G.armies[borders[rnd(borders.length)]]+=k;n-=k}G.reinforce=0;return}
+ if(lvl==='hard'){let worst=null,ws=0;for(const b of borders){if(!ownsCont(pi,CONT_OF[b]))continue;const th=enemyNbrs(b).reduce((s,e)=>s+G.armies[e],0)-G.armies[b];if(th>ws){ws=th;worst=b}}
+  if(worst){const k=Math.min(n,ws,Math.floor(n/2));G.armies[worst]+=k;n-=k}}
+ const goal=aiGoal(pi);let best=borders[0],bs=-1e9;
+ for(const b of borders)for(const e of enemyNbrs(b)){let s=G.armies[b]-G.armies[e];if(CONT_OF[e]===goal)s+=15;if(ownsCont(G.owner[e],CONT_OF[e]))s+=6;if(s>bs){bs=s;best=b}}
+ G.armies[best]+=n;G.reinforce=0}
+function aiPickAttack(pi,lvl){const goal=aiGoal(pi),need={easy:1.5,normal:1.2,hard:1}[lvl];let best=null,bs=-1e9;
+ for(const t of TER){const f=t.id;if(G.owner[f]!==pi||G.armies[f]<2)continue;
+  for(const e of ADJ[f]){if(G.owner[e]===pi)continue;const af=G.armies[f]-1,ae=G.armies[e];
+   if(af<2&&!(ae===1&&!G.conquered))continue;if(af<ae*need)continue;
+   let s=af-ae;if(CONT_OF[e]===goal)s+=8;if(lvl!=='easy'&&ownsCont(G.owner[e],CONT_OF[e]))s+=10;if(!G.conquered)s+=4;if(lvl==='easy')s+=rnd(10);
+   if(s>bs){bs=s;best=[f,e]}}}
+ if(best&&lvl==='easy'&&G.conquered&&Math.random()<0.25)return null;return best}
+function aiMoveCount(f,t,min,max){if(!enemyNbrs(f).length)return max;if(!enemyNbrs(t).length)return min;return Math.max(min,Math.ceil(max*0.6))}
+function aiFortify(pi,lvl){if(lvl==='easy'&&Math.random()<0.5)return;let src=null,sa=1;
+ for(const t of TER){const id=t.id;if(G.owner[id]===pi&&G.armies[id]>sa&&!enemyNbrs(id).length){sa=G.armies[id];src=id}}
+ if(!src)return;let dst=null,ds=-1e9;for(const id of connected(src)){const en=enemyNbrs(id);if(!en.length)continue;const s=en.reduce((s,e)=>s+G.armies[e],0)-G.armies[id];if(s>ds){ds=s;dst=id}}
+ if(dst){const n=G.armies[src]-1;moveArmies(src,dst,n);log(`${G.players[pi].name} moved ${n} to ${NAME[dst]}`)}}
+async function runAI(){busy=true;const gid=G.gid,pi=G.cur,p=G.players[pi],lvl=p.ai,gone=()=>!G||G.gid!==gid;let over=false;
+ const D=async()=>{await sleep(SPEEDS[G.speed]);if(gone())throw'stale'};
+ try{
+  while(p.cards.length>=5||(lvl!=='easy'&&findSet(p.cards))){const s=findSet(p.cards);if(!s)break;doTrade(pi,s)}
+  render();await D();aiPlace(pi,lvl);G.phase='attack';render();await D();
+  for(let g=0;g<200;g++){const mv=aiPickAttack(pi,lvl);if(!mv)break;const[f,t]=mv;G.sel=f;G.aiTarget=t;render();await D();
+   const K={easy:1.3,normal:1.1,hard:1}[lvl];let r;
+   do{r=battle(f,t)}while(!r.won&&G.armies[f]>1&&G.armies[f]-1>=G.armies[t]*K);
+   if(r.won){capture(f,t);if(checkWin()){over=true;return}
+    const max=G.armies[f]-1,min=Math.min(r.a,max);moveArmies(f,t,aiMoveCount(f,t,min,max));
+    if(p.cards.length>=6){G.reinforce=0;while(p.cards.length>=5){const s=findSet(p.cards);if(!s)break;doTrade(pi,s)}aiPlace(pi,lvl)}}
+   G.aiTarget=null;render()}
+  G.sel=null;G.aiTarget=null;G.phase='fortify';aiFortify(pi,lvl);render();await D();
+ }catch(e){if(e==='stale')return;console.error(e)}finally{if(!gone())busy=false}
+ if(!over&&!gone()&&G.phase!=='over')endTurn()}
+
+/* ---------- human ---------- */
+function canAct(){return G&&!busy&&G.phase!=='over'&&!G.players[G.cur].ai&&!modalLock}
+function movable(id){return G.armies[id]-1-(G.arrived[id]||0)}
+function onTap(id){if(Date.now()<suppressUntil)return;if(bonusView){toggleBonus();return}if(!canAct()||G.prompt)return;const me=G.cur;
+ if(G.phase==='reinforce'){if(G.owner[id]!==me)return;place(id,G.step===0?G.reinforce:G.step);return}
+ if(G.phase==='attack'){
+  if(G.owner[id]===me){G.sel=(G.sel!==id&&G.armies[id]>1&&enemyNbrs(id).length)?id:null;render();return}
+  if(G.sel&&ADJ[G.sel].includes(id)){humanAttack(G.sel,id);return}
+  G.sel=null;render();return}
+ if(G.phase==='fortify'){
+  if(G.owner[id]!==me){G.sel=null;render();return}
+  if(G.sel&&G.sel!==id&&ADJ[G.sel].includes(id)){const m=movable(G.sel);
+   if(G.mv==='manual'&&m>1)openMove('fortify',G.sel,id,1,m);else doFortify(G.sel,id,m);return}
+  G.sel=(G.sel!==id&&movable(id)>0&&ADJ[id].some(n=>G.owner[n]===me))?id:null;render()}}
+function place(id,n){n=Math.min(n,G.reinforce);if(n<=0)return;G.armies[id]+=n;G.reinforce-=n;if(G.reinforce===0){G.phase='attack';G.sel=null}save();render()}
+/* long press: armies keep coming, faster the longer you hold */
+let hold=null,suppressUntil=0,slide=null;const suppress=()=>{suppressUntil=Date.now()+450};
+function holdStart(id,e){if(!canAct()||G.prompt||bonusView)return;
+ if(G.phase==='attack'&&G.sel&&G.owner[id]!==G.cur&&ADJ[G.sel].includes(id)&&G.armies[G.sel]>1){holdCancel();
+  hold={kind:'atk',id,held:false,x:e.clientX,y:e.clientY,timer:setTimeout(()=>{if(!hold||dragged||(touch&&touch.pinch)){holdCancel();return}
+   hold.held=true;suppress();humanAttack(G.sel,id,true)},400)};return}
+ if(G.phase!=='reinforce'||G.owner[id]!==G.cur)return;
+ holdCancel();hold={kind:'place',id,held:false,x:e.clientX,y:e.clientY,n:0,iv:140,timer:setTimeout(holdTick,320)}}
+function holdTick(){if(!hold)return;if(dragged||(touch&&touch.pinch)||G.phase!=='reinforce'){holdCancel();return}
+ hold.held=true;place(hold.id,hold.n<8?1:hold.n<20?2:5);hold.n++;hold.iv=Math.max(28,hold.iv*0.86);
+ if(G.phase==='reinforce'&&G.reinforce>0)hold.timer=setTimeout(holdTick,hold.iv)}
+function holdCancel(){if(hold){clearTimeout(hold.timer);hold=null}}
+function holdEnd(){if(!hold)return;clearTimeout(hold.timer);const h=hold;hold=null;if(h.kind==='atk')return;suppress();
+ if(!h.held&&!dragged&&canAct()&&G.phase==='reinforce')place(h.id,G.step===0?G.reinforce:G.step)}
+function territoryAt(cx,cy){const p=toSvg(cx,cy);if(RAS){const x=Math.floor(p.x),y=Math.floor(p.y);if(x>=0&&y>=0&&x<RAS.W&&y<RAS.H){const k=RAS.idx[RAS.L[y*RAS.W+x]];if(k>=0)return TER[k].id}}
+ else{const el=document.elementFromPoint(cx,cy);if(el&&el.dataset&&el.dataset.id)return el.dataset.id}
+ let best=null,bd=RAS?30:70;for(const t of TER){const d=Math.hypot(t.x-p.x,t.y-p.y);if(d<bd){bd=d;best=t.id}}return best}
+function slideStart(id,e){if(!canAct()||G.prompt||bonusView||G.owner[id]!==G.cur||(G.phase!=='attack'&&G.phase!=='fortify'))return;slide={from:id,x:e.clientX,y:e.clientY,moved:false}}
+function slideEnd(e){const s=slide;slide=null;if(!s||!s.moved||!canAct())return;const to=territoryAt(e.clientX,e.clientY);if(!to||to===s.from||!ADJ[s.from].includes(to))return;
+ suppress();holdCancel();
+ if(G.phase==='attack'&&G.owner[to]!==G.cur&&G.armies[s.from]>1){G.sel=s.from;humanAttack(s.from,to);return}
+ if(G.phase==='fortify'&&G.owner[to]===G.cur&&movable(s.from)>0){G.sel=s.from;const m=movable(s.from);if(G.mv==='manual'&&m>1)openMove('fortify',s.from,to,1,m);else doFortify(s.from,to,m)}}
+addEventListener('pointerup',e=>{slideEnd(e)});
+addEventListener('pointerup',holdEnd);addEventListener('pointercancel',holdCancel);
+addEventListener('pointermove',e=>{if(hold&&Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>10)holdCancel();if(slide&&!slide.moved&&Math.hypot(e.clientX-slide.x,e.clientY-slide.y)>14)slide.moved=true});
+addEventListener('pointercancel',()=>{slide=null});
+function humanAttack(f,t,forceAuto){if(G.armies[f]<2)return;let r;const auto=forceAuto||G.atk==='auto';
+ do{r=battle(f,t)}while(auto&&!r.won&&G.armies[f]>1);
+ if(r.won){capture(f,t);if(checkWin())return;const max=G.armies[f]-1,min=Math.min(r.a,max);
+  if(G.mv==='manual'&&max>min){save();render();openMove('conquer',f,t,min,max);return}
+  moveArmies(f,t,max);afterConquer(f,t);return}
+ if(G.armies[f]<2)G.sel=null;save();render()}
+function afterConquer(f,t){
+ G.sel=(G.armies[t]>1&&enemyNbrs(t).length)?t:(G.armies[f]>1&&enemyNbrs(f).length)?f:null;
+ if(G.players[G.cur].cards.length>=6){G.phase='reinforce';G.reinforce=0;G.sel=null;save();render();maybePrompt();return}
+ save();render()}
+function doFortify(f,t,n){moveArmies(f,t,n);G.arrived[t]=(G.arrived[t]||0)+n;G.sel=null;log(`${G.players[G.cur].name} moved ${n} to ${NAME[t]}`);save();render()}
+function toFortify(){if(!canAct())return;G.phase='fortify';G.sel=null;G.arrived={};save();render()}
+function toggleAtk(){G.atk=G.atk==='one'?'auto':'one';save();render()}
+function toggleMv(){G.mv=G.mv==='manual'?'auto':'manual';save();render()}
+function cycleStep(){G.step=G.step===1?5:G.step===5?0:1;render()}
+/* cards */
+function maybePrompt(){const p=G.players[G.cur];const s=findSet(p.cards);if(!s)return;G.prompt={forced:p.cards.length>=5,picks:s};render()}
+function pickCard(i){const pr=G.prompt;if(!pr)return;const k=pr.picks.indexOf(i);if(k>=0)pr.picks.splice(k,1);else if(pr.picks.length<3)pr.picks.push(i);render()}
+function cash(){const p=G.players[G.cur],pr=G.prompt;if(!pr||!isSet(pr.picks.map(i=>p.cards[i])))return;doTrade(G.cur,pr.picks);G.prompt=null;save();maybePrompt();render()}
+function later(){if(G.prompt&&!G.prompt.forced){G.prompt=null;render()}}
+
+/* ---------- modals ---------- */
+function showModal(html,lock){$('#box').innerHTML=html;$('#modal').classList.add('show');modalLock=!!lock}
+function hideModal(){$('#modal').classList.remove('show');$('#box').innerHTML='';modalLock=false}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&!modalLock)hideModal()});
+let mv=null;
+function openMove(kind,f,t,min,max){mv={kind,f,t,min,max,val:max};
+ showModal(`<h2>${kind==='conquer'?'Conquered '+NAME[t]:'Fortify '+NAME[t]}</h2><p>Move armies from ${NAME[f]}</p>
+ <div class="big" id="mvv">${max}</div><input type="range" id="mvr" min="${min}" max="${max}" value="${max}" oninput="mv.val=+this.value;$('#mvv').textContent=this.value">
+ <div class="btns"><button class="btn" onclick="mvSet(${min})">Min</button><button class="btn" onclick="mvSet(${max})">Max</button><button class="btn pri" onclick="doMove()">Move</button>${kind==='fortify'?'<button class="btn" onclick="hideModal()">Cancel</button>':''}</div>`,kind==='conquer')}
+function mvSet(v){mv.val=v;$('#mvr').value=v;$('#mvv').textContent=v}
+function doMove(){const m=mv;if(!m)return;mv=null;hideModal();if(m.kind==='conquer'){moveArmies(m.f,m.t,m.val);afterConquer(m.f,m.t)}else doFortify(m.f,m.t,m.val)}
+function openMenu(){if(!G)return;
+ showModal(`<h2>Menu</h2>
+ <p>AI speed</p><div class="btns">${Object.keys(SPEEDS).map(x=>`<button class="btn ${G.speed===x?'pri':''}" onclick="G.speed='${x}';save();openMenu()">${SPEEDNAME[x]}</button>`).join('')}</div>
+ <div class="btns"><button class="btn" onclick="openLog()">Game Log</button><button class="btn" onclick="openHelp()">Help</button></div>
+ <div class="btns"><button class="btn" onclick="toSetup()">New Game</button><button class="btn pri" onclick="hideModal()">Resume</button></div>`)}
+function openLog(){showModal(`<h2>Game Log</h2><div id="logList">${G.log.slice().reverse().map(l=>`<div>${l}</div>`).join('')}</div><div class="btns"><button class="btn" onclick="openMenu()">Back</button></div>`)}
+const HELP_OLD=`<p><b>Place:</b> tap your territories to place armies. Hold a territory to keep adding armies, faster the longer you hold. Tap the soldiers to switch taps between +1, +5 and All.</p>
+ <p><b>Attack:</b> tap your territory, then tap an enemy at the end of a red arrow. 1-Attack rolls once per tap; Auto-Attack rolls until it wins or runs out. Holding an enemy always auto-attacks.</p>
+ <p><b>Manual / Auto-Move:</b> Manual asks how many armies to move after a win or fortify. Auto-Move moves them all.</p>
+ <p><b>Fortify:</b> tap Fortify, then move armies along green arrows to neighbors you own. Each army moves once. Tap End when done.</p>
+ <p><b>Cards:</b> take a territory on your turn to earn a card. Cash a set (three alike, one of each, or with a wild) for armies. With 5 cards you must cash.</p>
+ <p><b>Bonus:</b> shows each area and what holding all of it is worth per turn.</p>
+ <p><b>Legend:</b> drag it anywhere on the map; double-tap it to send it back to the corner. Flag = territories, soldier = armies, cards = cards held, arrow = armies next turn.</p>`;
+const HELP=`<p><b>Goal:</b> take over the entire map. Each turn you place armies, attack as much as you like, then fortify (each army can move one territory).</p>
+ <p><b>Touch:</b> tap or hold to place armies and to attack. Hold an enemy to attack until it falls. Slide from your country to a neighbor to attack it (or to move armies there when fortifying). Pinch to zoom. Two-finger slides always move the map; one-finger slides move it only when they start outside your own countries.</p>
+ <p><b>Cards:</b> conquer at least one enemy country in a turn to get a card at the end of it. Cash a set (3 of a kind, or 1 of each kind) at the start of your turn for extra armies; sets are worth more as the game goes on. You must cash with 5 or more. Eliminate a player to take all their cards.</p>
+ <p><b>Bonuses:</b> hold a whole bonus area at the start of your turn for extra armies. Tap Bonus to see each area's value. You also get your country count divided by 3 (minimum 3).</p>
+ <p><b>Buttons:</b> 1-Attack rolls once per tap; All-Attack keeps rolling. Manual asks how many armies to advance after a win; Auto-Advance moves them all.</p>
+ <p><b>Maps:</b> pick a map in Select Map. Import Map loads any Domination map zip you have downloaded; it stays saved on this device.</p>
+ <p><b>Legend:</b> flag = countries, soldier = armies, card = cards, graph = income next turn. Drag it anywhere; double-tap to reset.</p>`;
+function openHelp(){showModal(`<h2>Help</h2>${HELP}<div class="btns"><button class="btn" onclick="openMenu()">Back</button></div>`)}
+
+/* ---------- save ---------- */
+function save(){try{if(G)localStorage.setItem('frontline-save',JSON.stringify(G))}catch(e){}}
+function loadSave(){try{const s=localStorage.getItem('frontline-save');return s?JSON.parse(s):null}catch(e){return null}}
+async function resume(){const s=loadSave();if(!s)return;if(!(await loadMap(s.map||'classic'))){setupNote='That saved game used a map that is no longer on this device.';renderSetup();return}buildMap();G=s;if(!G.arrived)G.arrived={};enterGame();render();if(G.players[G.cur].ai)runAI()}
+
+/* ---------- icons ---------- */
+const IC={
+ sword:`<svg viewBox="0 0 48 44"><g stroke="#1d2233" stroke-width="1.5" fill="#d9dee8"><path d="M30 4 L36 6 L38 12 L17 31 L13 27 Z"/><path d="M9 24 L12 21 L23 32 L20 35 Z"/><path d="M14 31 L17 34 L10 41 L7 38 Z" fill="#9aa3b5"/></g></svg>`,
+ swords:`<svg viewBox="0 0 48 44"><g stroke="#1d2233" stroke-width="1.5" fill="#d9dee8"><path d="M30 4 L36 6 L38 12 L17 31 L13 27 Z"/><path d="M18 4 L12 6 L10 12 L31 31 L35 27 Z"/><path d="M9 24 L12 21 L23 32 L20 35 Z"/><path d="M39 24 L36 21 L25 32 L28 35 Z"/></g></svg>`,
+ manual:`<svg viewBox="0 0 48 44"><g fill="#d9dee8" stroke="#1d2233" stroke-width="1.2"><circle cx="8" cy="8" r="3.5"/><path d="M5 13h6l1 12-2 0 0 14h-3l0-14-2 0z"/><circle cx="40" cy="8" r="3.5"/><path d="M37 13h6l1 12-2 0 0 14h-3l0-14-2 0z"/><path d="M15 22 L20 17 L20 20 L28 20 L28 17 L33 22 L28 27 L28 24 L20 24 L20 27 Z"/></g></svg>`,
+ auto:`<svg viewBox="0 0 48 44"><g fill="#d9dee8" stroke="#1d2233" stroke-width="1.2"><circle cx="8" cy="8" r="3.5"/><path d="M5 13h6l1 12-2 0 0 14h-3l0-14-2 0z"/><path d="M15 22 L35 22 L35 17 L44 24 L35 31 L35 26 L15 26 Z"/></g></svg>`,
+ star:`<svg viewBox="0 0 48 44"><path d="M24 3 L29.5 16.5 L44 17 L32.5 26 L36.5 40 L24 32 L11.5 40 L15.5 26 L4 17 L18.5 16.5 Z" fill="#c9cfdb" stroke="#eef1f6" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
+ castle:`<svg viewBox="0 0 48 44"><path d="M5 40 V8 H11 V13 H16 V8 H21 V13 H27 V8 H32 V13 H37 V8 H43 V40 H29 V30 A5 5 0 0 0 19 30 V40 Z" fill="none" stroke="#eef1f6" stroke-width="3" stroke-linejoin="round"/></svg>`,
+ stop:`<svg viewBox="0 0 48 44"><path d="M17 3 H31 L42 14 V30 L31 41 H17 L6 30 V14 Z" fill="none" stroke="#eef1f6" stroke-width="4" stroke-linejoin="round"/></svg>`,
+ later:`<svg viewBox="0 0 48 44"><circle cx="24" cy="22" r="17" fill="none" stroke="#eef1f6" stroke-width="4"/><path d="M12 10 L36 34" stroke="#eef1f6" stroke-width="4"/></svg>`,
+ cards:`<svg viewBox="0 0 48 44"><g stroke="#1d2233" stroke-width="1.3" fill="#eceef3"><rect x="6" y="8" width="20" height="30" rx="3" transform="rotate(-14 16 23)"/><rect x="22" y="8" width="20" height="30" rx="3" transform="rotate(14 32 23)"/><rect x="14" y="5" width="20" height="32" rx="3"/></g><text x="24" y="25" font-size="13" text-anchor="middle" fill="#333">★</text></svg>`,
+ soldiers:n=>{let s='<svg viewBox="0 0 64 44">';const k=Math.min(3,Math.max(1,Math.ceil(n/6)));for(let i=0;i<k;i++){const x=12+i*18;s+=`<g fill="#e7d9c2" stroke="#1d2233" stroke-width="1.2"><circle cx="${x}" cy="8" r="4"/><path d="M${x-5} 13h10l1 14h-3v14h-3v-12h-1v12h-3v-14h-3z" fill="#2a3e7a"/><rect x="${x+5}" y="4" width="2" height="22" fill="#555"/></g>`}return s+'</svg>'},
+ flag:`<svg viewBox="0 0 30 24"><path d="M7 2 V23" stroke="#111" stroke-width="2"/><path d="M8 3 C14 0 18 7 26 3 L23 10 L26 14 C18 18 14 11 8 14 Z" fill="#111"/></svg>`,
+ soldier:`<svg viewBox="0 0 30 24"><circle cx="15" cy="12" r="11" fill="none" stroke="#111" stroke-width="1.5"/><circle cx="15" cy="6" r="2.6" fill="#111"/><path d="M11 10h8l-1 6h-1l1 6h-2l-1-5-1 5h-2l1-6h-1z M18 11 L27 7 L27 8.5 L18 13 Z" fill="#111"/></svg>`,
+ cardsmall:`<svg viewBox="0 0 30 24"><rect x="5" y="3" width="20" height="19" rx="2" fill="#f3f3f3" stroke="#111" stroke-width="1.5"/><rect x="8" y="1" width="20" height="19" rx="2" fill="#f3f3f3" stroke="#111" stroke-width="1.5" opacity=".6"/><path d="M9 14 h12 M9 10 h12" stroke="#666"/></svg>`,
+ chart:`<svg viewBox="0 0 30 24"><rect x="2" y="2" width="26" height="21" fill="#fff" stroke="#111" stroke-width="1.5"/><path d="M6 2v21M10 2v21M14 2v21M18 2v21M22 2v21M2 7h26M2 12h26M2 17h26" stroke="#bbb" stroke-width=".6"/><path d="M4 20 L11 14 L15 16 L24 6" fill="none" stroke="#111" stroke-width="2"/><path d="M20 5 L26 4 L25 10 Z" fill="#111"/></svg>`
+};
+
+/* ---------- render ---------- */
+const svg=$('#map'),NS='http://www.w3.org/2000/svg',EL={};let defs,arrowG,cardG,clG,ovImg;
+function drawRaster(){const R=RAS,d=R.img.data,L=R.L,cols=TER.map(t=>{let h=bonusView?CONT[t.c].color:G.players[G.owner[t.id]].color;if(!bonusView&&G.sel===t.id)h=shade(h,.4);const n=parseInt(h.slice(1),16);return[n>>16,n>>8&255,n&255]});
+ for(let i=0,j=0;i<L.length;i++,j+=4){const k=R.idx[L[i]];if(k<0){d[j+3]=0;continue}
+  if(R.border[i]){d[j]=22;d[j+1]=22;d[j+2]=22;d[j+3]=210;continue}
+  const c=cols[k],f=R.lum[i];d[j]=c[0]*f;d[j+1]=c[1]*f;d[j+2]=c[2]*f;d[j+3]=238}
+ R.ctx.putImageData(R.img,0,0);const my=++R.seq;
+ R.cv.toBlob(b=>{if(!b||my!==R.seq||RAS!==R)return;const old=R.url;R.url=URL.createObjectURL(b);ovImg.setAttribute('href',R.url);if(old)setTimeout(()=>URL.revokeObjectURL(old),500)})}
+function mk(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e}
+function buildMap(){setTimeout(fitAspect,0);$('#mapArea').classList.toggle('ras',!MAP.vector);svg.innerHTML='';for(const k in EL)delete EL[k];RAS=null;svg.setAttribute('viewBox',`0 0 ${MAP.W} ${MAP.H}`);VB={x:0,y:0,w:MAP.W,h:MAP.H};
+ defs=mk('defs',{},svg);
+ defs.innerHTML=`<filter id="tex" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="7" result="n"/>
+ <feDiffuseLighting in="n" surfaceScale="1.6" lighting-color="#fff" result="l"><feDistantLight azimuth="225" elevation="58"/></feDiffuseLighting>
+ <feComposite in="SourceGraphic" in2="l" operator="arithmetic" k1="1.25" k2="0" k3="0" k4="0" result="c"/><feComposite in="c" in2="SourceAlpha" operator="in"/></filter>
+ <marker id="ahR" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e3242b"/></marker>
+ <marker id="ahG" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="#22a34a"/></marker>`;
+ const KK=Math.max(.72,MAP.W/1000);
+ if(!MAP.vector){mk('image',{href:MAP.picURL,x:0,y:0,width:MAP.W,height:MAP.H,preserveAspectRatio:'none'},svg);
+  ovImg=mk('image',{x:0,y:0,width:MAP.W,height:MAP.H,preserveAspectRatio:'none'},svg);
+  arrowG=mk('g',{class:'arrow'},svg);const marks=mk('g',{style:`font-size:${15*KK}px`},svg);clG=mk('g',{class:'clbl'},svg);cardG=mk('g',{},svg);
+  for(const t of TER){const g=mk('g',{class:'mk'},marks);const c=mk('circle',{cx:t.x,cy:t.y,r:13*KK},g);const tx=mk('text',{x:t.x,y:t.y+1,style:`font-size:${15*KK}px`},g);EL[t.id]={c,tx,g}}
+  const W=MAP.W,H=MAP.H,L=MAP.labData,idx=new Int16Array(256).fill(-1);TER.forEach((t,k)=>{if(t.n>=0&&t.n<255)idx[t.n]=k});
+  const border=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x,v=L[i];if(x<W-1&&L[i+1]!==v){border[i]=1;border[i+1]=1}if(y<H-1&&L[i+W]!==v){border[i]=1;border[i+W]=1}}
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
+  RAS={W,H,L,idx,border,lum:MAP.lum,cv,ctx,img:ctx.createImageData(W,H),seq:0,url:null};return}
+ const lanes=mk('g',{},svg),coast=mk('g',{},svg),land=mk('g',{filter:'url(#tex)'},svg);
+ arrowG=mk('g',{class:'arrow'},svg);const marks=mk('g',{},svg);clG=mk('g',{class:'clbl'},svg);cardG=mk('g',{},svg);
+ for(const[a,b]of MAP.E){const[x1,y1]=POS[a],[x2,y2]=POS[b];const at={stroke:'#2d4f66','stroke-width':1.6,'stroke-dasharray':'5 5',opacity:.65};
+  if(Math.abs(x1-x2)>500){const[l,r]=x1<x2?[[x1,y1],[x2,y2]]:[[x2,y2],[x1,y1]],ym=(l[1]+r[1])/2;mk('line',{x1:l[0],y1:l[1],x2:0,y2:ym,...at},lanes);mk('line',{x1:r[0],y1:r[1],x2:MAP.W,y2:ym,...at},lanes)}
+  else mk('line',{x1,y1,x2,y2,...at},lanes)}
+ for(const t of TER){const d=t.polys.map(q=>'M'+q.map(p=>p.join(',')).join('L')+'Z').join('');
+  mk('path',{d,fill:'#f7f3da',stroke:'#f7f3da','stroke-width':4,'stroke-linejoin':'round'},coast);
+  const p=mk('path',{d,class:'terr','data-id':t.id},land);p.addEventListener('click',()=>onTap(t.id));p.addEventListener('pointerdown',e=>{holdStart(t.id,e);slideStart(t.id,e)});
+  const g=mk('g',{class:'mk'},marks);const c=mk('circle',{cx:t.x,cy:t.y,r:13},g);const tx=mk('text',{x:t.x,y:t.y+1},g);
+  EL[t.id]={p,c,tx,g}}}
+function ensureGrad(){if(!G||defs.querySelector('#g0'))return;
+ G.players.forEach((p,i)=>{const g=mk('radialGradient',{id:'g'+i,cx:'38%',cy:'32%',r:'70%'},defs);
+  mk('stop',{offset:'0%','stop-color':shade(p.color,.55)},g);mk('stop',{offset:'55%','stop-color':shade(p.color,-.05)},g);mk('stop',{offset:'100%','stop-color':shade(p.color,-.45)},g)})}
+function buildContLabels(){clG.innerHTML='';const K=Math.max(.72,MAP.W/1000);for(const c in CONT){const ts=TER.filter(t=>t.c===c);if(!ts.length||!(CONT[c].bonus>0))continue;const x=ts.reduce((s,t)=>s+t.x,0)/ts.length,y=ts.reduce((s,t)=>s+t.y,0)/ts.length;
+ const txt=`${CONT[c].name}: ${G?contBonus(c):CONT[c].bonus}`,w=(txt.length*12+16)*K;
+ mk('rect',{x:x-w/2,y:y-17*K,width:w,height:34*K,rx:4,fill:'rgba(255,255,255,.5)',stroke:shade(CONT[c].color,-.3),'stroke-width':3*K},clG);
+ mk('text',{x,y:y+1,style:`font-size:${22*K}px`},clG).textContent=txt}}
+function toggleBonus(){bonusView=!bonusView;svg.classList.toggle('bonus',bonusView);if(bonusView)buildContLabels();render()}
+function arrow(f,t,col){let[x1,y1]=POS[f],[x2,y2]=POS[t];if(MAP.wrap){if(x2-x1>500)x2-=MAP.W;else if(x1-x2>500)x2+=MAP.W}const K=Math.max(.72,MAP.W/1000);
+ const ax=x1+(x2-x1)*.42,ay=y1+(y2-y1)*.42,bx=x1+(x2-x1)*.7,by=y1+(y2-y1)*.7;
+ mk('line',{x1:ax,y1:ay,x2:bx,y2:by,stroke:col==='R'?'#e3242b':'#22a34a','stroke-width':5*K,'stroke-linecap':'round','marker-end':`url(#ah${col})`},arrowG)}
+function drawCards(){cardG.innerHTML='';const pr=G.prompt;if(!pr)return;const p=G.players[G.cur];let wild=0;
+ const K=Math.max(.72,MAP.W/1000);p.cards.forEach((c,i)=>{let x,y;if(c.t){[x,y]=POS[c.t]}else{x=MAP.W*.44+wild*100*K;y=MAP.H*.9;wild++}
+  x=Math.max(48*K,Math.min(MAP.W-48*K,x));y=Math.max(40*K,Math.min(MAP.H-40*K,y));
+  const on=pr.picks.includes(i),g=mk('g',{class:'card',opacity:on?1:.72},cardG);
+  mk('rect',{x:x-46*K,y:y-36*K,width:92*K,height:72*K,rx:6,fill:on?'#fbf8f0':'#e9e6df',stroke:on?'#6a3fd6':'#8a8a99','stroke-width':on?4:1.5},g);
+  const n=mk('text',{x,y:y-20*K,'font-size':13*K},g);n.textContent=c.t?NAME[c.t]:'Wild';
+  const s=mk('text',{x,y:y+14*K,'font-size':32*K},g);s.textContent=CARDSYM[c.s];
+  g.addEventListener('click',e=>{e.stopPropagation();pickCard(i)})})}
+function fitSide(){const sd=$('#side'),inn=$('#sideIn');if(!inn)return;inn.style.zoom=1;const need=inn.scrollHeight,have=sd.clientHeight-8;inn.style.zoom=need>have&&need>0?(have/need).toFixed(3):1}
+function side(){const s={set innerHTML(h){$('#side').innerHTML='<div id="sideIn">'+h+'</div>';fitSide()}},cp=G.players[G.cur],human=!cp.ai&&G.phase!=='over';let h=`<button class="sb menu" onclick="openMenu()">Menu</button>`;
+ const b=(icon,label,fn,cls='',dis=false)=>`<button class="sb ${cls}" ${dis?'disabled':''} onclick="${fn}">${icon}<span>${label}</span></button>`;
+ if(G.phase==='over'){h+=b(IC.star,'Bonus','toggleBonus()',bonusView?'on':'');s.innerHTML=h;return}
+ if(!human){h+=b(IC.star,'Bonus','toggleBonus()',bonusView?'on':'');s.innerHTML=h;return}
+ if(G.prompt){h+='<div class="grow"></div>';if(!G.prompt.forced)h+=b(IC.later,'Later','later()');h+='<div class="grow"></div>';
+  const ok=isSet(G.prompt.picks.map(i=>cp.cards[i]));h+=b(IC.cards,'Cash','cash()','',!ok);s.innerHTML=h;return}
+ const atkB=G.atk==='one'?b(IC.sword,'1-Attack','toggleAtk()'):b(IC.swords,'All-Attack','toggleAtk()');
+ const mvB=G.mv==='manual'?b(IC.manual,'Manual','toggleMv()'):b(IC.auto,'Auto-Advance','toggleMv()');
+ const bon=b(IC.star,'Bonus','toggleBonus()',bonusView?'on':'');
+ if(G.phase==='reinforce'){h+=atkB+mvB+bon+`<div class="place" onclick="cycleStep()"><div class="n">${G.reinforce}</div><div class="l">Armies<br>To Place</div>${IC.soldiers(G.reinforce)}<div class="l" style="font-size:12px">tap: ${G.step===0?'All':'+'+G.step}</div></div>`}
+ else if(G.phase==='attack'){h+=atkB+mvB+bon+b(IC.castle,'Fortify','toFortify()')+b(IC.stop,'End','endTurn()')}
+ else if(G.phase==='fortify'){h+=mvB+bon+'<div class="grow"></div>'+b(IC.stop,'End','endTurn()')}
+ s.innerHTML=h}
+function legend(){const order=[];for(let k=0;k<G.players.length;k++){const i=(G.cur+k)%G.players.length;if(G.players[i].alive)order.push(i)}
+ $('#legend').innerHTML=`<table><tr><th>${IC.flag}</th><th>${IC.soldier}</th><th>${IC.cardsmall}</th><th>${IC.chart}</th></tr>${order.map(i=>{const p=G.players[i];
+  const n=TER.filter(t=>G.owner[t.id]===i).length,a=TER.reduce((s,t)=>s+(G.owner[t.id]===i?G.armies[t.id]:0),0);
+  return`<tr style="color:${p.text}"><td>${n}</td><td>${a}</td><td>${p.cards.length}</td><td>${calcReinf(i)}</td></tr>`}).join('')}</table>`;applyLeg()}
+function banner(){const cp=G.players[G.cur],el=$('#banner');let txt=`${cp.name}'s turn`;
+ if(G.phase==='over'){const w=G.players.find(p=>p.alive);txt=G.players.filter(p=>p.alive).length===1?`${w.name} wins!`:'Game over'}
+ else if(G.prompt){const v=tradeValue(G.trades),nx=[1,2,3].map(k=>tradeValue(G.trades+k));txt=`cash is worth ${v} armies (then ${nx.join(',')})`}
+ else if(!cp.ai&&G.phase==='fortify')txt=`${cp.name}: fortify`;
+ el.textContent=txt;el.style.background=`linear-gradient(90deg,${shade(cp.color,-.25)},${shade(cp.color,.1)})`}
+function render(){if(!G)return;ensureGrad();const cp=G.players[G.cur],human=!cp.ai&&G.phase!=='over';
+ arrowG.innerHTML='';
+ if(G.sel&&!bonusView){if(G.phase==='attack'){(human?enemyNbrs(G.sel):G.aiTarget?[G.aiTarget]:[]).forEach(t=>arrow(G.sel,t,'R'))}
+  if(G.phase==='fortify'&&human)ADJ[G.sel].filter(n=>G.owner[n]===G.cur).forEach(t=>arrow(G.sel,t,'G'))}
+ for(const t of TER){const e=EL[t.id],o=G.owner[t.id],col=G.players[o].color;
+  if(e.p)e.p.style.fill=bonusView?CONT[t.c].color:(G.sel===t.id?shade(col,.38):col);
+  e.c.setAttribute('fill',`url(#g${o})`);e.tx.textContent=G.armies[t.id];e.g.style.display=G.armies[t.id]===1?'none':''}
+ if(RAS)drawRaster();
+ if(bonusView)buildContLabels();
+ drawCards();side();legend();banner()}
+
+/* ---------- layout: always landscape ---------- */
+function layout(){const app=$('#app'),w=innerWidth,h=innerHeight,rot=h>w;
+ app.style.width=(rot?h:w)+'px';app.style.height=(rot?w:h)+'px';app.style.transform=rot?`translateY(${h}px) rotate(-90deg)`:'none';fitAspect()}
+/* stretch a little to fill, like Lux; past 35% distortion keep the map's true shape */
+function fitAspect(){const A=$('#mapArea');if(!A||!MAP)return;const aw=A.clientWidth,ah=A.clientHeight;if(!aw||!ah)return;
+ const r=(aw/ah)/(MAP.W/MAP.H);svg.setAttribute('preserveAspectRatio',(r>1.35||r<1/1.35)?'xMidYMid meet':'none')}
+addEventListener('resize',()=>{layout();fitSide();applyLeg()});
+function enterGame(){busy=false;holdCancel();document.body.classList.add('ingame');setVB(0,0,MAP.W);hideModal();layout();setTimeout(fitAspect,50);defs.querySelectorAll('radialGradient').forEach(g=>g.remove());bonusView=false;svg.classList.remove('bonus')}
+function toSetup(){hideModal();document.body.classList.remove('ingame');setupPage='main';renderSetup()}
+
+/* ---------- setup screens ---------- */
+let setupPage='main',pickFor=null;
+const DEFAULT_CFG={players:[{color:'Blue',type:'human'},{color:'Red',type:'easy'},{color:'Green',type:'normal'},{color:'Yellow',type:'hard'},{color:'Black',type:'random'},{color:'Purple',type:'off'}],seq:'lux',grow:0.05,speed:'regular'};
+let CFG=(()=>{try{const s=JSON.parse(localStorage.getItem('frontline-setup'));if(s&&s.players)return s}catch(e){}return JSON.parse(JSON.stringify(DEFAULT_CFG))})();
+function saveCfg(){try{localStorage.setItem('frontline-setup',JSON.stringify(CFG))}catch(e){}}
+function splat(col){const c=PCOL[col].fill;return`<svg class="splat" viewBox="0 0 46 40"><path d="M23 3 C29 1 31 7 36 6 C42 6 40 12 44 15 C46 20 41 22 43 27 C44 33 37 32 34 36 C30 40 26 35 21 38 C15 40 14 34 9 33 C3 31 6 26 3 22 C1 17 6 14 5 10 C5 4 11 6 15 4 C18 2 20 4 23 3 Z" fill="${c}"/><path d="M14 12 C18 9 24 10 27 13" stroke="${shade(c,.4)}" stroke-width="2" fill="none" opacity=".7"/></svg>`}
+function thumb(){let s=`<svg viewBox="0 0 ${WORLD.W} ${WORLD.H}" preserveAspectRatio="none" width="84" height="64">`;for(const t of WORLD.T)s+=`<path d="${t.polys.map(q=>'M'+q.map(p=>p.join(',')).join('L')+'Z').join('')}" fill="${WORLD_CONT[t.c].color}" stroke="#f7f3da" stroke-width="5"/>`;return s+'</svg>'}
+function renderSetup(){if(setupPage==='main')setTimeout(()=>{setupNote=''},0);const el=$('#setup'),active=CFG.players.filter(p=>p.type!=='off').length,sv=loadSave();
+ if(setupPage==='main'){
+  el.innerHTML=`<div class="nav"><a onclick="setupHelp()">Help</a><span class="t">Frontline</span><a class="r ${active<2?'dis':''}" onclick="playNow()">Play Now</a></div>
+  ${sv&&sv.phase!=='over'?`<div class="sec"><div class="cell" onclick="resume()"><span class="main">Resume Game<span class="by">Round ${sv.turn}, ${sv.players[sv.cur].name}'s turn</span></span><span class="chev">&#x203A;</span></div></div>`:''}
+  ${setupNote?`<p class="note warn">${setupNote}</p>`:''}
+  <div class="sec"><div class="cell" onclick="setupPage='maps';renderSetup()"><div class="thumb">${mapThumb(CFG.map)}</div><span class="main">Map<span class="sub">${mapInfo(CFG.map).name}</span><span class="by">By: ${mapInfo(CFG.map).by}</span></span><span class="chev">&#x203A;</span></div>
+  <div class="cell" onclick="setupPage='options';renderSetup()"><span class="main">Game Options</span><span class="chev">&#x203A;</span></div></div>
+  <div class="sec">${CFG.players.map((p,i)=>`<div class="cell" onclick="pickFor=${i};setupPage='pick';renderSetup()">${splat(p.color)}<span class="main">${p.color}</span><span class="val">${TYPENAME[p.type]}</span><span class="chev">&#x203A;</span></div>`).join('')}</div>
+  ${active<2?'<p class="note warn">Turn on at least 2 players.</p>':''}<div style="height:30px"></div>`}
+ else if(setupPage==='pick'){const p=CFG.players[pickFor];
+  el.innerHTML=`<div class="nav"><a onclick="setupPage='main';renderSetup()">&#x2039; Back</a><span class="t">${p.color}</span><a></a></div>
+  <div class="sec">${TYPES.map(([k,l])=>`<div class="cell" onclick="CFG.players[${pickFor}].type='${k}';saveCfg();setupPage='main';renderSetup()"><span class="main">${l}</span>${p.type===k?'<span class="chk">&#x2713;</span>':''}</div>`).join('')}</div>`}
+ else if(setupPage==='maps'){el.innerHTML=mapsPage()}
+ else if(setupPage==='options'){
+  const row=(lbl,val,page)=>`<div class="cell" onclick="setupPage='${page}';renderSetup()"><span class="main">${lbl}</span><span class="val">${val}</span><span class="chev">&#x203A;</span></div>`;
+  el.innerHTML=`<div class="nav"><a onclick="setupPage='main';renderSetup()">&#x2039; Back</a><span class="t">Game Options</span><a></a></div>
+  <div class="sec"><div class="cell"><span class="main">Map Start</span><span class="val">Random</span></div>
+  ${row('Card Sequence',SEQS[CFG.seq].label,'o-seq')}${row('Continent Bonus',GROW.find(g=>g[0]===CFG.grow)[1],'o-grow')}${row('AI Speed',SPEEDNAME[CFG.speed],'o-speed')}</div>`}
+ else{const opts=setupPage==='o-seq'?Object.entries(SEQS).map(([k,v])=>[k,v.label]):setupPage==='o-grow'?GROW:Object.entries(SPEEDNAME);
+  const key={'o-seq':'seq','o-grow':'grow','o-speed':'speed'}[setupPage],title={'o-seq':'Card Sequence','o-grow':'Continent Bonus','o-speed':'AI Speed'}[setupPage];
+  el.innerHTML=`<div class="nav"><a onclick="setupPage='options';renderSetup()">&#x2039; Back</a><span class="t">${title}</span><a></a></div>
+  <div class="sec">${opts.map(([k,l])=>`<div class="cell" onclick='CFG.${key}=${JSON.stringify(k)};saveCfg();setupPage="options";renderSetup()'><span class="main">${l}</span>${CFG[key]===k?'<span class="chk">&#x2713;</span>':''}</div>`).join('')}</div>`}}
+function playNow(){if(CFG.players.filter(p=>p.type!=='off').length<2)return;newGame(CFG)}
+function setupHelp(){const el=$('#setup');el.innerHTML=`<div class="nav"><a onclick="setupPage='main';renderSetup()">&#x2039; Back</a><span class="t">Help</span><a></a></div><div class="sec" style="padding:4px 16px;font-size:16px">${HELP}</div>`}
+
+/* ---------- maps: built-in library, imports ---------- */
+let MAPINDEX=[],IMPORTED=[],setupNote='',importMsg='';const MAPCACHE={};
+function mapInfo(id){if(!id||id==='classic')return{name:'Classic World',by:'Frontline'};const m=MAPINDEX.find(x=>x.id===id)||IMPORTED.find(x=>x.id===id);return m?{name:m.name,by:m.id.startsWith('imp_')?'Imported':'Domination community'}:{name:'Classic World',by:'Frontline'}}
+function mapThumb(id){const m=MAPINDEX.find(x=>x.id===id)||IMPORTED.find(x=>x.id===id);return m&&m.thumb?`<img src="${m.thumb}" style="width:84px;height:64px;object-fit:cover">`:thumb()}
+async function decodeImg(url,W,H){const img=new Image();img.src=url;await img.decode();W=W||img.naturalWidth;H=H||img.naturalHeight;const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(img,0,0,W,H);return{W,H,d:x.getImageData(0,0,W,H).data}}
+async function prepRaster(m){const lab=await decodeImg(m.labURL,m.W,m.H),pic=await decodeImg(m.picURL,m.W,m.H);const N=m.W*m.H,L=new Uint8Array(N),lum=new Float32Array(N);
+ for(let i=0;i<N;i++){L[i]=lab.d[i*4];const r=pic.d[i*4],g=pic.d[i*4+1],b=pic.d[i*4+2];lum[i]=.62+.5*((.3*r+.59*g+.11*b)/255)}m.labData=L;m.lum=lum}
+async function loadMap(id){try{if(!id||id==='classic'){setMapData(WORLD);return true}
+ let m=MAPCACHE[id];
+ if(!m){if(id.startsWith('imp_')){const r=await idb('get',id);if(!r)return false;m=r.meta;m.picURL=URL.createObjectURL(r.pic);m.labURL=URL.createObjectURL(r.lab)}
+  else{const r=await fetch('maps/'+id+'.json');if(!r.ok)return false;m=await r.json();m.picURL='maps/'+id+'_pic.jpg';m.labURL=m.lab}
+  await prepRaster(m);MAPCACHE[id]=m}
+ setMapData(m);return true}catch(e){console.error(e);return false}}
+function idb(op,arg){return new Promise((res,rej)=>{let rq;try{rq=indexedDB.open('frontline',1)}catch(e){return res(op==='all'?[]:null)}
+ rq.onupgradeneeded=()=>rq.result.createObjectStore('maps',{keyPath:'id'});rq.onerror=()=>res(op==='all'?[]:null);
+ rq.onsuccess=()=>{try{const tx=rq.result.transaction('maps',op==='get'||op==='all'?'readonly':'readwrite'),st=tx.objectStore('maps');
+  const r=op==='get'?st.get(arg):op==='all'?st.getAll():op==='put'?st.put(arg):st.delete(arg);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}})}
+async function unzipBytes(buf){const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);let e=buf.length-22;while(e>0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<=0)throw new Error('Not a zip file');
+ const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={};
+ for(let i=0;i<n;i++){const method=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+  const name=new TextDecoder().decode(buf.slice(p+46,p+46+nl));p+=46+nl+xl+cl;if(name.endsWith('/'))continue;
+  const lnl=dv.getUint16(off+26,true),lxl=dv.getUint16(off+28,true),data=buf.slice(off+30+lnl+lxl,off+30+lnl+lxl+cs);
+  let out=data;if(method===8)out=new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  files[name.split('/').pop().toLowerCase()]=out}return files}
+function parseDomMap(txt){const R={files:{},conts:[],T:[],E:[]};let sec='';const seen=new Set();
+ for(let l of txt.split(/\r?\n/)){l=l.trim();if(!l||l[0]===';')continue;const m=l.match(/^\[(.+)\]$/);if(m){sec=m[1].toLowerCase();continue}const p=l.split(/\s+/);
+  if(sec==='files'&&p.length>1)R.files[p[0]]=p.slice(1).join(' ');
+  else if(sec==='continents'&&p.length>1)R.conts.push({name:p[0].replace(/_/g,' '),bonus:+p[1]||0,color:p[2]||'#888'});
+  else if(sec==='countries'&&p.length>4)R.T.push({id:'t'+p[0],n:+p[0],name:p[1].replace(/_/g,' '),c:(+p[2])-1,x:+p[3],y:+p[4]});
+  else if(sec==='borders'){const a=+p[0];for(const b of p.slice(1).map(Number)){if(a===b)continue;const k=Math.min(a,b)+','+Math.max(a,b);if(!seen.has(k)){seen.add(k);R.E.push(['t'+Math.min(a,b),'t'+Math.max(a,b)])}}}}
+ const ids=new Set(R.T.map(t=>t.id));R.E=R.E.filter(([a,b])=>ids.has(a)&&ids.has(b));return R}
+async function importZip(file){if(!file)return;importMsg='Importing...';renderSetup();
+ try{const f=await unzipBytes(new Uint8Array(await file.arrayBuffer()));const mk=Object.keys(f).find(k=>k.endsWith('.map'));if(!mk)throw new Error('No .map file inside');
+  const R=parseDomMap(new TextDecoder('latin1').decode(f[mk]));const lf=(R.files.map||'').split('/').pop().toLowerCase(),pf=(R.files.pic||'').split('/').pop().toLowerCase();
+  if(!f[lf]||!f[pf])throw new Error('Map images missing from the zip');if(!R.T.length)throw new Error('No territories found');
+  const mime=n=>n.endsWith('.png')?'image/png':n.endsWith('.gif')?'image/gif':'image/jpeg';
+  const lab=new Blob([f[lf]],{type:mime(lf)}),pic=new Blob([f[pf]],{type:mime(pf)});
+  const li=await decodeImg(URL.createObjectURL(lab));const pu=URL.createObjectURL(pic),img=new Image();img.src=pu;await img.decode();
+  const tc=document.createElement('canvas');tc.width=168;tc.height=128;tc.getContext('2d').drawImage(img,0,0,168,128);
+  let name=mk.replace(/\.map$/,'').replace(/[_-]+/g,' ');name=name.replace(/\b\w/g,c=>c.toUpperCase());
+  const id='imp_'+name.replace(/[^A-Za-z0-9]/g,'').slice(0,24)+'_'+Date.now().toString(36);
+  const meta={id,name,W:li.W,H:li.H,conts:R.conts,T:R.T,E:R.E},thumbURL=tc.toDataURL('image/jpeg',.75);
+  await idb('put',{id,meta,pic,lab,thumb:thumbURL});IMPORTED.push({id,name,n:R.T.length,thumb:thumbURL});
+  CFG.map=id;saveCfg();importMsg=`Imported ${name} (${R.T.length} territories).`}
+ catch(e){importMsg='Could not import that file: '+e.message}renderSetup()}
+async function removeImport(id){await idb('del',id);IMPORTED=IMPORTED.filter(m=>m.id!==id);delete MAPCACHE[id];if(CFG.map===id){CFG.map='classic';saveCfg()}renderSetup()}
+function mapsPage(){const cell=(m,extra='')=>`<div class="cell" onclick="CFG.map='${m.id}';saveCfg();setupPage='main';renderSetup()"><div class="thumb">${m.thumb?`<img src="${m.thumb}" style="width:84px;height:64px;object-fit:cover">`:thumb()}</div><span class="main">${m.name}<span class="by">${m.by||'By: Domination community'}${m.n?' &middot; '+m.n+' territories':''}</span></span>${extra}${CFG.map===m.id?'<span class="chk">&#x2713;</span>':''}</div>`;
+ return`<div class="nav"><a onclick="setupPage='main';renderSetup()">&#x2039; Back</a><span class="t">Select Map</span><a></a></div>
+ <div class="sec"><label class="cell" style="cursor:pointer"><span class="main">Import Map (.zip)<span class="by">Any Domination map zip, kept on this device</span></span><span class="chev">+</span><input type="file" accept=".zip,application/zip" style="display:none" onchange="importZip(this.files[0])"></label></div>
+ ${importMsg?`<p class="note">${importMsg}</p>`:''}
+ <div class="sec">${cell({id:'classic',name:'Classic World',by:'By: Frontline',n:42})}${IMPORTED.map(m=>cell({...m,by:'Imported'},`<span class="val" style="color:#c0392b" onclick="event.stopPropagation();removeImport('${m.id}')">Remove</span>`)).join('')}</div>
+ <div class="sec">${MAPINDEX.map(m=>cell(m)).join('')}</div><div style="height:30px"></div>`}
+async function loadLibrary(){try{const r=await fetch('maps/index.json');if(r.ok)MAPINDEX=await r.json()}catch(e){}
+ try{IMPORTED=(await idb('all')).map(r=>({id:r.id,name:r.meta.name,n:r.meta.T.length,thumb:r.thumb}))}catch(e){}
+ if(!document.body.classList.contains('ingame'))renderSetup()}
+
+/* ---------- draggable legend ---------- */
+let legPos=(()=>{try{return JSON.parse(localStorage.getItem('frontline-legend'))}catch(e){return null}})(),legDrag=null;
+function appPt(cx,cy){const w=innerWidth,h=innerHeight;return h>w?{x:h-cy,y:cx}:{x:cx,y:cy}}
+function applyLeg(){const L=$('#legend'),A=$('#mapArea');if(!legPos){L.classList.remove('free');L.style.left='0';L.style.top='';L.style.bottom='0';return}
+ const W=A.clientWidth-L.offsetWidth,H=A.clientHeight-L.offsetHeight;L.classList.add('free');L.style.bottom='auto';
+ L.style.left=Math.max(0,legPos.fx*W)+'px';L.style.top=Math.max(0,legPos.fy*H)+'px'}
+(()=>{const L=$('#legend');
+ L.addEventListener('pointerdown',e=>{e.stopPropagation();try{L.setPointerCapture(e.pointerId)}catch(_){}const p=appPt(e.clientX,e.clientY);legDrag={p,l:L.offsetLeft,t:L.offsetTop}});
+ L.addEventListener('pointermove',e=>{if(!legDrag)return;const A=$('#mapArea'),p=appPt(e.clientX,e.clientY);
+  const W=Math.max(1,A.clientWidth-L.offsetWidth),H=Math.max(1,A.clientHeight-L.offsetHeight);
+  const l=Math.max(0,Math.min(W,legDrag.l+p.x-legDrag.p.x)),t=Math.max(0,Math.min(H,legDrag.t+p.y-legDrag.p.y));
+  legPos={fx:l/W,fy:t/H};applyLeg()});
+ const end=()=>{if(!legDrag)return;legDrag=null;try{localStorage.setItem('frontline-legend',JSON.stringify(legPos))}catch(_){}};
+ L.addEventListener('pointerup',end);L.addEventListener('pointercancel',end);
+ L.addEventListener('dblclick',()=>{legPos=null;try{localStorage.removeItem('frontline-legend')}catch(_){}applyLeg()});
+ ['touchstart','touchmove','touchend'].forEach(ev=>L.addEventListener(ev,e=>{e.stopPropagation();if(ev==='touchmove')e.preventDefault()},{passive:false}));
+})();
+
+/* ---------- map zoom / pan (map only) ---------- */
+let VB={x:0,y:0,w:MAP.W,h:MAP.H},touch=null,dragged=false;
+function setVB(x,y,w){w=Math.max(MAP.W/4,Math.min(MAP.W,w));const h=w*MAP.H/MAP.W;
+ x=Math.max(0,Math.min(MAP.W-w,x));y=Math.max(0,Math.min(MAP.H-h,y));VB={x,y,w,h};svg.setAttribute('viewBox',`${x} ${y} ${w} ${h}`)}
+function toSvg(cx,cy){const p=svg.createSVGPoint();p.x=cx;p.y=cy;return p.matrixTransform(svg.getScreenCTM().inverse())}
+function frac(cx,cy){const p=toSvg(cx,cy);return{x:(p.x-VB.x)/VB.w,y:(p.y-VB.y)/VB.h}}
+const mid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2}),dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+const MA=$('#mapArea');
+MA.addEventListener('touchstart',e=>{const t=e.touches;
+ if(t.length===2){const m=mid(t);touch={pinch:true,d:dist(t),w:VB.w,p:toSvg(m.x,m.y)};dragged=true}
+ else if(t.length===1){const id=(e.target&&e.target.dataset&&e.target.dataset.id)||(RAS&&G?territoryAt(t[0].clientX,t[0].clientY):null);const mine=id&&G&&G.owner[id]===G.cur&&!G.players[G.cur].ai&&G.phase!=='over';
+  touch={pinch:false,noPan:!!mine,sx:t[0].clientX,sy:t[0].clientY,p:toSvg(t[0].clientX,t[0].clientY)};dragged=false}},{passive:false});
+MA.addEventListener('touchmove',e=>{e.preventDefault();if(!touch)return;const t=e.touches;
+ if(touch.pinch&&t.length===2){const m=mid(t),w=touch.w*touch.d/dist(t);const nw=Math.max(MAP.W/4,Math.min(MAP.W,w)),nh=nw*MAP.H/MAP.W;
+  const f=frac(m.x,m.y);setVB(touch.p.x-f.x*nw,touch.p.y-f.y*nh,nw)}
+ else if(!touch.pinch&&t.length===1){if(Math.hypot(t[0].clientX-touch.sx,t[0].clientY-touch.sy)>8)dragged=true;
+  if(dragged&&!touch.noPan&&VB.w<MAP.W){const f=frac(t[0].clientX,t[0].clientY);setVB(touch.p.x-f.x*VB.w,touch.p.y-f.y*VB.h,VB.w)}}},{passive:false});
+MA.addEventListener('touchend',e=>{if(e.touches.length===0)touch=null;else if(e.touches.length===1&&touch&&touch.pinch){const t=e.touches[0];touch={pinch:false,sx:t.clientX,sy:t.clientY,p:toSvg(t.clientX,t.clientY)}}});
+MA.addEventListener('click',e=>{if(dragged){e.stopPropagation();e.preventDefault();dragged=false}},true);
+svg.addEventListener('pointerdown',e=>{if(!RAS||(e.target.closest&&e.target.closest('.card')))return;const id=territoryAt(e.clientX,e.clientY);if(id){holdStart(id,e);slideStart(id,e)}});
+svg.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.id)return;if(e.target.closest&&e.target.closest('.card'))return;const id=territoryAt(e.clientX,e.clientY);if(id)onTap(id)});
+MA.addEventListener('wheel',e=>{e.preventDefault();const p=toSvg(e.clientX,e.clientY),f=frac(e.clientX,e.clientY),nw=Math.max(MAP.W/4,Math.min(MAP.W,VB.w*(e.deltaY>0?1.15:0.87))),nh=nw*MAP.H/MAP.W;setVB(p.x-f.x*nw,p.y-f.y*nh,nw)},{passive:false});
+['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchmove',e=>{if(document.body.classList.contains('ingame')&&e.touches.length>1)e.preventDefault()},{passive:false});
+
+buildMap();layout();renderSetup();loadLibrary();
+if('serviceWorker' in navigator&&/github\.io$/.test(location.hostname)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+</script>
+</body>
+</html>
