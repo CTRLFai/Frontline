@@ -223,14 +223,14 @@ function movable(id){return G.armies[id]-1-(G.arrived[id]||0)}
 function onTap(id){if(Date.now()<suppressUntil)return;if(bonusView){toggleBonus();return}if(!canAct()||G.prompt)return;const me=G.cur;
  if(G.phase==='reinforce'){if(G.owner[id]!==me)return;place(id,G.step===0?G.reinforce:G.step);return}
  if(G.phase==='attack'){
-  if(G.owner[id]===me){G.sel=(G.sel!==id&&G.armies[id]>1&&enemyNbrs(id).length)?id:null;render();return}
+  if(G.owner[id]===me){if(id===G.sel)G.sel=null;else if(G.armies[id]>1&&enemyNbrs(id).length)G.sel=id;render();return}
   if(G.sel&&ADJ[G.sel].includes(id)){humanAttack(G.sel,id);return}
-  G.sel=null;render();return}
+  return}
  if(G.phase==='fortify'){
-  if(G.owner[id]!==me){G.sel=null;render();return}
+  if(G.owner[id]!==me)return;
   if(G.sel&&G.sel!==id&&ADJ[G.sel].includes(id)){const m=movable(G.sel);
    if(G.mv==='manual'&&m>1)openMove('fortify',G.sel,id,1,m);else doFortify(G.sel,id,m);return}
-  G.sel=(G.sel!==id&&movable(id)>0&&ADJ[id].some(n=>G.owner[n]===me))?id:null;render()}}
+  if(id===G.sel)G.sel=null;else if(movable(id)>0&&ADJ[id].some(n=>G.owner[n]===me))G.sel=id;render()}}
 function place(id,n){n=Math.min(n,G.reinforce);if(n<=0)return;G.armies[id]+=n;G.reinforce-=n;if(G.reinforce===0){G.phase='attack';G.sel=null}save();render()}
 /* long press: armies keep coming, faster the longer you hold */
 let hold=null,suppressUntil=0,slide=null;const suppress=()=>{suppressUntil=Date.now()+450};
@@ -254,8 +254,22 @@ function territoryAt(cx,cy){const p=toSvg(cx,cy);if(RAS){const x=Math.floor(p.x)
     const dx=xj-xi,dy=yj-yi,L=dx*dx+dy*dy||1,u=Math.max(0,Math.min(1,((p.x-xi)*dx+(p.y-yi)*dy)/L)),d=Math.hypot(xi+u*dx-p.x,yi+u*dy-p.y);if(d<bd){bd=d;best=t.id}}
    if(inside)return t.id}}if(best)return best}
  let best=null,bd=RAS?30:70;for(const t of TER){const d=Math.hypot(t.x-p.x,t.y-p.y);if(d<bd){bd=d;best=t.id}}return best}
+function territoryExact(cx,cy){const p=toSvg(cx,cy);
+ if(RAS){const x=Math.floor(p.x),y=Math.floor(p.y);if(x<0||y<0||x>=RAS.W||y>=RAS.H)return null;const k=RAS.idx[RAS.L[y*RAS.W+x]];return k>=0?TER[k].id:null}
+ for(const t of TER)for(const q of t.polys){let r=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const[xi,yi]=q[i],[xj,yj]=q[j];if((yi>p.y)!==(yj>p.y)&&p.x<(xj-xi)*(p.y-yi)/(yj-yi)+xi)r=!r}if(r)return t.id}return null}
+/* look at a small area around the fingertip and pick what the player most likely meant */
+function resolveTap(cx,cy){const C=new Map();for(const r of[0,6,12,18,24]){const n=r?12:1;for(let k=0;k<n;k++){const a=k*Math.PI/6,id=territoryExact(cx+r*Math.cos(a),cy+r*Math.sin(a));if(id&&!C.has(id))C.set(id,r)}}
+ if(!C.size)return territoryAt(cx,cy);const L=[...C.entries()].sort((a,b)=>a[1]-b[1]),exact=L[0][1]===0?L[0][0]:null;
+ const near=(f,max)=>{const c=L.find(([id,r])=>r<=max&&f(id));return c?c[0]:null};
+ if(G&&canAct()&&!G.prompt){const me=G.cur;
+  const target=G.sel&&(G.phase==='attack'?id=>G.owner[id]!==me&&ADJ[G.sel].includes(id):G.phase==='fortify'?id=>id!==G.sel&&G.owner[id]===me&&ADJ[G.sel].includes(id):null);
+  if(target){if(exact&&target(exact))return exact;
+   const mineSelectable=exact&&exact!==G.sel&&G.owner[exact]===me;
+   if(!mineSelectable){const t=near(target,exact===G.sel?6:24);if(t)return t}}
+  if(G.phase==='reinforce'){if(exact&&G.owner[exact]===me)return exact;const t=near(id=>G.owner[id]===me,18);if(t)return t}}
+ return exact||L[0][0]}
 function slideStart(id,e){if(!canAct()||G.prompt||bonusView||G.owner[id]!==G.cur||(G.phase!=='attack'&&G.phase!=='fortify'))return;slide={from:id,x:e.clientX,y:e.clientY,moved:false}}
-function slideEnd(e){const s=slide;slide=null;if(!s||!s.moved||!canAct())return;const to=territoryAt(e.clientX,e.clientY);if(!to||to===s.from||!ADJ[s.from].includes(to))return;
+function slideEnd(e){const s=slide;slide=null;if(!s||!s.moved||!canAct())return;const ps=G.sel;G.sel=s.from;const to=resolveTap(e.clientX,e.clientY);G.sel=ps;if(!to||to===s.from||!ADJ[s.from].includes(to))return;
  suppress();holdCancel();
  if(G.phase==='attack'&&G.owner[to]!==G.cur&&G.armies[s.from]>1){G.sel=s.from;humanAttack(s.from,to);return}
  if(G.phase==='fortify'&&G.owner[to]===G.cur&&movable(s.from)>0){G.sel=s.from;const m=movable(s.from);if(G.mv==='manual'&&m>1)openMove('fortify',s.from,to,1,m);else doFortify(s.from,to,m)}}
@@ -372,7 +386,7 @@ function buildMap(){setTimeout(fitAspect,0);$('#mapArea').classList.toggle('ras'
   else mk('line',{x1,y1,x2,y2,...at},lanes)}
  for(const t of TER){const d=t.polys.map(q=>'M'+q.map(p=>p.join(',')).join('L')+'Z').join('');
   mk('path',{d,fill:'#f7f3da',stroke:'#f7f3da','stroke-width':4,'stroke-linejoin':'round'},coast);
-  const p=mk('path',{d,class:'terr','data-id':t.id},land);p.addEventListener('click',()=>onTap(t.id));p.addEventListener('pointerdown',e=>{holdStart(t.id,e);slideStart(t.id,e)});
+  const p=mk('path',{d,class:'terr','data-id':t.id},land);
   const g=mk('g',{class:'mk'},marks);const c=mk('circle',{cx:t.x,cy:t.y,r:13},g);const tx=mk('text',{x:t.x,y:t.y+1},g);
   EL[t.id]={p,c,tx,g}}}
 function ensureGrad(){if(!G||defs.querySelector('#g0'))return;
@@ -567,8 +581,8 @@ MA.addEventListener('touchmove',e=>{e.preventDefault();if(!touch)return;const t=
   if(dragged&&!touch.noPan&&VB.w<MAP.W){const f=frac(t[0].clientX,t[0].clientY);setVB(touch.p.x-f.x*VB.w,touch.p.y-f.y*VB.h,VB.w)}}},{passive:false});
 MA.addEventListener('touchend',e=>{if(e.touches.length===0)touch=null;else if(e.touches.length===1&&touch&&touch.pinch){const t=e.touches[0];touch={pinch:false,sx:t.clientX,sy:t.clientY,p:toSvg(t.clientX,t.clientY)}}});
 MA.addEventListener('click',e=>{if(dragged){e.stopPropagation();e.preventDefault();dragged=false}},true);
-svg.addEventListener('pointerdown',e=>{if(!RAS||(e.target.closest&&e.target.closest('.card')))return;const id=territoryAt(e.clientX,e.clientY);if(id){holdStart(id,e);slideStart(id,e)}});
-svg.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.id)return;if(e.target.closest&&e.target.closest('.card'))return;const id=territoryAt(e.clientX,e.clientY);if(id)onTap(id)});
+svg.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);if(id){holdStart(id,e);slideStart(territoryExact(e.clientX,e.clientY)||id,e)}});
+svg.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);if(id)onTap(id)});
 MA.addEventListener('wheel',e=>{e.preventDefault();const p=toSvg(e.clientX,e.clientY),f=frac(e.clientX,e.clientY),nw=Math.max(MAP.W/4,Math.min(MAP.W,VB.w*(e.deltaY>0?1.15:0.87))),nh=nw*MAP.H/MAP.W;setVB(p.x-f.x*nw,p.y-f.y*nh,nw)},{passive:false});
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('ingame')&&e.touches.length>1)e.preventDefault()},{passive:false});
