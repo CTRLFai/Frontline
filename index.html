@@ -247,7 +247,12 @@ function holdCancel(){if(hold){clearTimeout(hold.timer);hold=null}}
 function holdEnd(){if(!hold)return;clearTimeout(hold.timer);const h=hold;hold=null;if(h.kind==='atk')return;suppress();
  if(!h.held&&!dragged&&canAct()&&G.phase==='reinforce')place(h.id,G.step===0?G.reinforce:G.step)}
 function territoryAt(cx,cy){const p=toSvg(cx,cy);if(RAS){const x=Math.floor(p.x),y=Math.floor(p.y);if(x>=0&&y>=0&&x<RAS.W&&y<RAS.H){const k=RAS.idx[RAS.L[y*RAS.W+x]];if(k>=0)return TER[k].id}}
- else{const el=document.elementFromPoint(cx,cy);if(el&&el.dataset&&el.dataset.id)return el.dataset.id}
+ else{const el=document.elementFromPoint(cx,cy);if(el&&el.dataset&&el.dataset.id)return el.dataset.id;
+  /* tap landed on a border, coast or sea: use the territory whose outline is under or closest to the finger */
+  let best=null,bd=22;for(const t of TER){for(const q of t.polys){let inside=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const[xi,yi]=q[i],[xj,yj]=q[j];
+    if((yi>p.y)!==(yj>p.y)&&p.x<(xj-xi)*(p.y-yi)/(yj-yi)+xi)inside=!inside;
+    const dx=xj-xi,dy=yj-yi,L=dx*dx+dy*dy||1,u=Math.max(0,Math.min(1,((p.x-xi)*dx+(p.y-yi)*dy)/L)),d=Math.hypot(xi+u*dx-p.x,yi+u*dy-p.y);if(d<bd){bd=d;best=t.id}}
+   if(inside)return t.id}}if(best)return best}
  let best=null,bd=RAS?30:70;for(const t of TER){const d=Math.hypot(t.x-p.x,t.y-p.y);if(d<bd){bd=d;best=t.id}}return best}
 function slideStart(id,e){if(!canAct()||G.prompt||bonusView||G.owner[id]!==G.cur||(G.phase!=='attack'&&G.phase!=='fortify'))return;slide={from:id,x:e.clientX,y:e.clientY,moved:false}}
 function slideEnd(e){const s=slide;slide=null;if(!s||!s.moved||!canAct())return;const to=territoryAt(e.clientX,e.clientY);if(!to||to===s.from||!ADJ[s.from].includes(to))return;
