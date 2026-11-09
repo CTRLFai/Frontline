@@ -312,7 +312,7 @@ function doMove(){const m=mv;if(!m)return;mv=null;hideModal();if(m.kind==='conqu
 function openMenu(){if(!G)return;
  showModal(`<h2>Menu</h2>
  <p>AI speed</p><div class="btns">${Object.keys(SPEEDS).map(x=>`<button class="btn ${G.speed===x?'pri':''}" onclick="G.speed='${x}';save();openMenu()">${SPEEDNAME[x]}</button>`).join('')}</div>
- <div class="btns"><button class="btn" onclick="openLog()">Game Log</button><button class="btn" onclick="openHelp()">Help</button></div>
+ <div class="btns"><button class="btn" onclick="openLog()">Game Log</button><button class="btn" onclick="openHelp()">Help</button><button class="btn ${DEBUGTAP?'pri':''}" onclick="DEBUGTAP=!DEBUGTAP;openMenu()">Show Taps: ${DEBUGTAP?'On':'Off'}</button></div>
  <div class="btns"><button class="btn" onclick="toSetup()">New Game</button><button class="btn pri" onclick="hideModal()">Resume</button></div>`)}
 function openLog(){showModal(`<h2>Game Log</h2><div id="logList">${G.log.slice().reverse().map(l=>`<div>${l}</div>`).join('')}</div><div class="btns"><button class="btn" onclick="openMenu()">Back</button></div>`)}
 const HELP_OLD=`<p><b>Place:</b> tap your territories to place armies. Hold a territory to keep adding armies, faster the longer you hold. Tap the soldiers to switch taps between +1, +5 and All.</p>
@@ -582,7 +582,12 @@ MA.addEventListener('touchmove',e=>{e.preventDefault();if(!touch)return;const t=
 MA.addEventListener('touchend',e=>{if(e.touches.length===0)touch=null;else if(e.touches.length===1&&touch&&touch.pinch){const t=e.touches[0];touch={pinch:false,sx:t.clientX,sy:t.clientY,p:toSvg(t.clientX,t.clientY)}}});
 MA.addEventListener('click',e=>{if(dragged){e.stopPropagation();e.preventDefault();dragged=false}},true);
 svg.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);if(id){holdStart(id,e);slideStart(territoryExact(e.clientX,e.clientY)||id,e)}});
-svg.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);if(id)onTap(id)});
+let DEBUGTAP=false;
+function showTap(e,id){if(!DEBUGTAP)return;const K=Math.max(.72,MAP.W/1000),a=toSvg(e.clientX,e.clientY);let b=null;try{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;b=p.matrixTransform(svg.getScreenCTM().inverse())}catch(_){}
+ const g=mk('g',{style:'pointer-events:none'},svg);mk('circle',{cx:a.x,cy:a.y,r:6*K,fill:'none',stroke:'#ff2a2a','stroke-width':3*K},g);mk('circle',{cx:a.x,cy:a.y,r:1.5*K,fill:'#ff2a2a'},g);
+ if(b)mk('circle',{cx:b.x,cy:b.y,r:9*K,fill:'none',stroke:'#2a9dff','stroke-width':2*K},g);
+ $('#banner').textContent=`tap: ${id?NAME[id]:'none'} | dx ${b?Math.round(b.x-a.x):'?'} dy ${b?Math.round(b.y-a.y):'?'}`;setTimeout(()=>{g.remove();render()},2500)}
+svg.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);showTap(e,id);if(id)onTap(id)});
 MA.addEventListener('wheel',e=>{e.preventDefault();const p=toSvg(e.clientX,e.clientY),f=frac(e.clientX,e.clientY),nw=Math.max(MAP.W/4,Math.min(MAP.W,VB.w*(e.deltaY>0?1.15:0.87))),nh=nw*MAP.H/MAP.W;setVB(p.x-f.x*nw,p.y-f.y*nh,nw)},{passive:false});
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(document.body.classList.contains('ingame')&&e.touches.length>1)e.preventDefault()},{passive:false});
