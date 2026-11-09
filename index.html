@@ -489,12 +489,13 @@ let MAPINDEX=[],IMPORTED=[],setupNote='',importMsg='';const MAPCACHE={};
 function mapInfo(id){if(!id||id==='classic')return{name:'Classic World',by:'Frontline'};const m=MAPINDEX.find(x=>x.id===id)||IMPORTED.find(x=>x.id===id);return m?{name:m.name,by:m.id.startsWith('imp_')?'Imported':'Domination community'}:{name:'Classic World',by:'Frontline'}}
 function mapThumb(id){const m=MAPINDEX.find(x=>x.id===id)||IMPORTED.find(x=>x.id===id);return m&&m.thumb?`<img src="${m.thumb}" style="width:84px;height:64px;object-fit:cover">`:thumb()}
 async function decodeImg(url,W,H){const img=new Image();img.src=url;await img.decode();W=W||img.naturalWidth;H=H||img.naturalHeight;const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(img,0,0,W,H);return{W,H,d:x.getImageData(0,0,W,H).data}}
-async function prepRaster(m){const lab=await decodeImg(m.labURL,m.W,m.H),pic=await decodeImg(m.picURL,m.W,m.H);const N=m.W*m.H,L=new Uint8Array(N),lum=new Float32Array(N);
- for(let i=0;i<N;i++){L[i]=lab.d[i*4];const r=pic.d[i*4],g=pic.d[i*4+1],b=pic.d[i*4+2];lum[i]=.62+.5*((.3*r+.59*g+.11*b)/255)}m.labData=L;m.lum=lum}
+function rleDecode(b64,N){const r=atob(b64),L=new Uint8Array(N);let p=0;for(let k=0;k+2<r.length;k+=3){const v=r.charCodeAt(k),n=r.charCodeAt(k+1)|r.charCodeAt(k+2)<<8;L.fill(v,p,p+n);p+=n}return L}
+async function prepRaster(m){const N=m.W*m.H,exact=m.rle?rleDecode(m.rle,N):null;const lab=exact?null:await decodeImg(m.labURL,m.W,m.H),pic=await decodeImg(m.picURL,m.W,m.H);const L=exact||new Uint8Array(N),lum=new Float32Array(N);
+ for(let i=0;i<N;i++){if(!exact)L[i]=lab.d[i*4];const r=pic.d[i*4],g=pic.d[i*4+1],b=pic.d[i*4+2];lum[i]=.62+.5*((.3*r+.59*g+.11*b)/255)}m.labData=L;m.lum=lum}
 async function loadMap(id){try{if(!id||id==='classic'){setMapData(WORLD);return true}
  let m=MAPCACHE[id];
  if(!m){if(id.startsWith('imp_')){const r=await idb('get',id);if(!r)return false;m=r.meta;m.picURL=URL.createObjectURL(r.pic);m.labURL=URL.createObjectURL(r.lab)}
-  else{const r=await fetch('maps/'+id+'.json');if(!r.ok)return false;m=await r.json();m.picURL='maps/'+id+'_pic.jpg';m.labURL=m.lab}
+  else{const r=await fetch('maps/'+id+'.json');if(!r.ok)return false;m=await r.json();m.picURL='maps/'+id+'_pic.jpg'}
   await prepRaster(m);MAPCACHE[id]=m}
  setMapData(m);return true}catch(e){console.error(e);return false}}
 function idb(op,arg){return new Promise((res,rej)=>{let rq;try{rq=indexedDB.open('frontline',1)}catch(e){return res(op==='all'?[]:null)}
@@ -586,7 +587,8 @@ let DEBUGTAP=false;
 function showTap(e,id){if(!DEBUGTAP)return;const K=Math.max(.72,MAP.W/1000),a=toSvg(e.clientX,e.clientY);let b=null;try{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;b=p.matrixTransform(svg.getScreenCTM().inverse())}catch(_){}
  const g=mk('g',{style:'pointer-events:none'},svg);mk('circle',{cx:a.x,cy:a.y,r:6*K,fill:'none',stroke:'#ff2a2a','stroke-width':3*K},g);mk('circle',{cx:a.x,cy:a.y,r:1.5*K,fill:'#ff2a2a'},g);
  if(b)mk('circle',{cx:b.x,cy:b.y,r:9*K,fill:'none',stroke:'#2a9dff','stroke-width':2*K},g);
- $('#banner').textContent=`tap: ${id?NAME[id]:'none'} | dx ${b?Math.round(b.x-a.x):'?'} dy ${b?Math.round(b.y-a.y):'?'}`;setTimeout(()=>{g.remove();render()},2500)}
+ const xx=Math.floor(a.x),yy=Math.floor(a.y),lv=RAS&&xx>=0&&yy>=0&&xx<RAS.W&&yy<RAS.H?RAS.L[yy*RAS.W+xx]:'-';
+ $('#banner').textContent=`tap: ${id?NAME[id]:'none'} v${lv} | dx ${b?Math.round(b.x-a.x):'?'} dy ${b?Math.round(b.y-a.y):'?'}`;setTimeout(()=>{g.remove();render()},2500)}
 svg.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.card'))return;const id=resolveTap(e.clientX,e.clientY);showTap(e,id);if(id)onTap(id)});
 MA.addEventListener('wheel',e=>{e.preventDefault();const p=toSvg(e.clientX,e.clientY),f=frac(e.clientX,e.clientY),nw=Math.max(MAP.W/4,Math.min(MAP.W,VB.w*(e.deltaY>0?1.15:0.87))),nh=nw*MAP.H/MAP.W;setVB(p.x-f.x*nw,p.y-f.y*nh,nw)},{passive:false});
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
